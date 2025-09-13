@@ -1,11 +1,16 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+// nuxt.config.ts
 export default defineNuxtConfig({
     compatibilityDate: '2025-07-15',
     devtools: { enabled: true },
-    modules: ['@nuxt/eslint', '@nuxt/image', '@nuxt/ui', '@clerk/nuxt']
+    modules: [
+        '@nuxt/eslint',
+        '@nuxt/image',
+        '@nuxt/ui',
+        '@clerk/nuxt'
+    ],
     runtimeConfig: {
         public: {
-            clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+            clerkPublishableKey: process.env.NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
         },
     },
 })
