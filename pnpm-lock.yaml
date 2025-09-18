@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      node:
+        specifier: ^24.8.0
+        version: 24.8.0
     devDependencies:
       turbo:
         specifier: ^2.5.6
@@ -135,12 +139,18 @@ importers:
       '@nuxt/ui':
         specifier: 3.3.3
         version: 3.3.3(@babel/parser@7.28.4)(change-case@5.4.4)(db0@0.3.2)(embla-carousel@8.6.0)(ioredis@5.7.0)(magicast@0.3.5)(typescript@5.9.2)(vite@7.1.5(@types/node@22.18.3)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.44.0)(yaml@2.8.1))(vue-router@4.5.1(vue@3.5.21(typescript@5.9.2)))(vue@3.5.21(typescript@5.9.2))
+      '@tailwindcss/vite':
+        specifier: ^4.1.13
+        version: 4.1.13(vite@7.1.5(@types/node@22.18.3)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.44.0)(yaml@2.8.1))
       eslint:
         specifier: ^9.35.0
         version: 9.35.0(jiti@2.5.1)
       nuxt:
         specifier: ^4.1.1
         version: 4.1.2(@parcel/watcher@2.5.1)(@types/node@22.18.3)(@vue/compiler-sfc@3.5.21)(db0@0.3.2)(eslint@9.35.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.1)(magicast@0.3.5)(optionator@0.9.4)(rollup@4.50.1)(terser@5.44.0)(typescript@5.9.2)(vite@7.1.5(@types/node@22.18.3)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.44.0)(yaml@2.8.1))(yaml@2.8.1)
+      tailwindcss:
+        specifier: ^4.1.13
+        version: 4.1.13
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
@@ -4796,6 +4806,9 @@ packages:
   node-addon-api@7.1.1:
     resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
 
+  node-bin-setup@1.1.4:
+    resolution: {integrity: sha512-vWNHOne0ZUavArqPP5LJta50+S8R261Fr5SvGul37HbEDcowvLjwdvd0ZeSr0r2lTSrPxl6okq9QUw8BFGiAxA==}
+
   node-emoji@1.11.0:
     resolution: {integrity: sha512-wo2DpQkQp7Sjm2A0cq+sN7EHKO6Sl0ctXeBdFZrL9T9+UywORbufTcTZxom8YqpLQt/FqNMUkOpkZrJVYSKD3A==}
 
@@ -4827,6 +4840,11 @@ packages:
 
   node-releases@2.0.21:
     resolution: {integrity: sha512-5b0pgg78U3hwXkCM8Z9b2FJdPZlr9Psr9V2gQPESdGHqbntyFJKFW4r5TeWGFzafGY3hzs1JC62VEQMbl1JFkw==}
+
+  node@24.8.0:
+    resolution: {integrity: sha512-96VUgFV6DNxMQwi/V/mwSFLUDId93eHJQIA4XNZ3PTGHdek7EeY1bAHEUX51hpBcA5YT9kU7Yn6LP+6TmsMtlw==}
+    engines: {npm: '>=5.0.0'}
+    hasBin: true
 
   nopt@8.1.0:
     resolution: {integrity: sha512-ieGu42u/Qsa4TFktmaKEwM6MQH0pOWnaB3htzh0JRtx84+Mebc0cbZYN5bC+6WTZ4+77xrL9Pn5m7CV6VIkV7A==}
@@ -12066,6 +12084,8 @@ snapshots:
 
   node-addon-api@7.1.1: {}
 
+  node-bin-setup@1.1.4: {}
+
   node-emoji@1.11.0:
     dependencies:
       lodash: 4.17.21
@@ -12085,6 +12105,10 @@ snapshots:
   node-mock-http@1.0.3: {}
 
   node-releases@2.0.21: {}
+
+  node@24.8.0:
+    dependencies:
+      node-bin-setup: 1.1.4
 
   nopt@8.1.0:
     dependencies:
