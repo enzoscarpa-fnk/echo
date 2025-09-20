@@ -1,12 +1,11 @@
-version: '3.8'
 services:
   backend:
     build: ./backend
     ports:
-      - "4000:4000"
-    env_file: ./backend/.env
+      - "8082:3000"
+    env_file: /home/dev/secrets/echo-back.env
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
-    env_file: ./frontend/.env
+      - "8083:3001"
+    env_file: /home/dev/secrets/echo-front.env
