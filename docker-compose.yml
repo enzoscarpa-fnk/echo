@@ -1,7 +1,7 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: ./apps/backend
       dockerfile: Dockerfile
     image: echo-backend
     container_name: echo_backend
@@ -16,7 +16,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/frontend
       dockerfile: Dockerfile
     image: echo-frontend
     container_name: echo_frontend
