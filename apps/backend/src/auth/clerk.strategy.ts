@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-custom';
 import { Request } from 'express';
-import { ClerkClient } from '@clerk/backend';
+import { type ClerkClient } from '@clerk/backend';
 
 @Injectable()
 export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
@@ -32,8 +32,8 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
             const user = await this.clerkClient.users.getUser(tokenPayload.sub);
             return user;
         } catch (error) {
-            console.error(error);
-            throw new UnauthorizedException('Invalid token');
+            console.error('Clerk authentication failed:', error.message);
+            throw new UnauthorizedException('Invalid or expired token');
         }
     }
 }
