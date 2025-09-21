@@ -1,0 +1,34 @@
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: echo-backend
+    container_name: echo_backend
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "8082:3000"
+    env_file:
+      - /home/dev/secrets/echo-back.env
+    networks:
+      - echo_network
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    image: echo-frontend
+    container_name: echo_frontend
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "8083:3000"
+    env_file:
+      - /home/dev/secrets/echo-front.env
+    networks:
+      - echo_network
+
+networks:
+  echo_network:
+    driver: bridge
