@@ -1,7 +1,9 @@
-// nuxt.config.ts
 export default defineNuxtConfig({
-    compatibilityDate: '2025-07-15',
+    compatibilityDate: '2025-09-18',
     devtools: { enabled: true },
+    devServer: {
+        port: 3000  // ← Configuration du port ici
+    },
     modules: [
         '@nuxt/eslint',
         '@nuxt/image',

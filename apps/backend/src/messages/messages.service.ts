@@ -1,5 +1,5 @@
 // src/messages/messages.service.ts
-import { Injectable } from '@nestjs/common';
+/*import { Injectable } from '@nestjs/common';
 
 export interface Message {
     id: string;
@@ -31,3 +31,4 @@ export class MessagesService {
         return message;
     }
 }
+*/

@@ -1,19 +1,26 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule);
 
-    // Enable CORS for frontend communication
-    app.enableCors({
-        origin: ['http://localhost:3001', 'http://localhost:3000'], // Nuxt dev server
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-    });
+  // Enable CORS for frontend
+  app.enableCors({
+    origin: ['http://localhost:3000'], // Frontend URL
+    credentials: true,
+  });
 
-    const port = process.env.PORT || 3000;
-    await app.listen(port);
-    console.log(`🚀 Backend server running on http://localhost:${port}`);
+  // Global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  await app.listen(3001);
+  console.log('🚀 Backend running on http://localhost:3001');
 }
 bootstrap();
