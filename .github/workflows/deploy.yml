@@ -11,22 +11,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.16.0
+
       - name: Node.js setup
         uses: actions/setup-node@v5
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Backend test
-        run: |
-          cd apps/backend
-          npm install
-          npm run test --if-present
+        run: pnpm --filter backend test --if-present
 
       - name: Frontend test
-        run: |
-          cd apps/frontend
-          npm install
-          npm run test --if-present
+        run: pnpm --filter frontend test --if-present
 
   deploy:
     needs: test
