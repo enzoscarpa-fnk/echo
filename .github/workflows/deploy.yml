@@ -1,0 +1,54 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Node.js setup
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Backend test
+        run: |
+          cd apps/backend
+          npm install
+          npm run test --if-present
+
+      - name: Frontend test
+        run: |
+          cd apps/frontend
+          npm install
+          npm run test --if-present
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.VPS_PROJECT_PATH }}
+            git pull origin master
+            docker compose down --volumes
+            docker compose up -d --build
+            
+            # Check containers are UP
+            sleep 10
+            docker ps --filter "name=echo" --format "table {{.Names}}\t{{.Status}}"
+            
+            # Clean unused images
+            docker system prune -f
