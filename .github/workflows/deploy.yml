@@ -44,7 +44,12 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 10m
+          fingerprint: ''
           script: |
+            export TERM=xterm
             cd ${{ secrets.VPS_PROJECT_PATH }}
             git pull origin master
             docker compose down --volumes
