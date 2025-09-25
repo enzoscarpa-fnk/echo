@@ -27,10 +27,10 @@ jobs:
         run: pnpm install
 
       - name: Backend test
-        run: pnpm --filter backend test --if-present
+        run: pnpm --filter backend test
 
       - name: Frontend test
-        run: pnpm --filter frontend test --if-present
+        run: pnpm --filter frontend test
 
   deploy:
     needs: test
