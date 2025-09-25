@@ -32,6 +32,16 @@ jobs:
       - name: Frontend test
         run: pnpm --filter frontend test
 
+      - name: Debug secrets
+        run: |
+            echo "Host: ${{ secrets.VPS_HOST }}"
+            echo "User: ${{ secrets.VPS_USER }}"
+            echo "Path: ${{ secrets.VPS_PROJECT_PATH }}"
+            echo "SSH Key present: ${{ secrets.SSH_PRIVATE_KEY != '' }}"
+            echo "SSH Key length: ${#SSH_PRIVATE_KEY}"
+          env:
+            SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
