@@ -1,5 +1,18 @@
+<script setup lang="ts">
+import LoginButton from "~~/components/LoginButton.vue";
+</script>
+
 <template>
-  <div>
+  <header>
+    <SignedOut>
+      <LoginButton />
+    </SignedOut>
+    <SignedIn>
+      <UserButton />
+    </SignedIn>
+  </header>
+
+  <main>
     <NuxtPage />
-  </div>
+  </main>
 </template>
