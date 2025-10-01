@@ -1,5 +1,5 @@
 // src/auth/clerk.strategy.ts
-import { User, verifyToken } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
@@ -17,7 +17,7 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
         super();
     }
 
-    async validate(req: Request): Promise<User> {
+    async validate(req: Request): Promise<any> {
         const token = req.headers.authorization?.split(' ').pop();
 
         if (!token) {

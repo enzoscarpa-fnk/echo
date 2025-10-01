@@ -1,15 +1,21 @@
 // src/auth/auth.module.ts
 import { Module } from '@nestjs/common';
-import { ClerkStrategy } from './clerk.strategy';
 import { PassportModule } from '@nestjs/passport';
-import { ClerkClientProvider } from '../providers/clerk-client.provider';
 import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { ClerkStrategy } from './clerk.strategy';
+import { ClerkClientProvider } from '../providers/clerk-client.provider';
 
 @Module({
-  imports: [PassportModule, ConfigModule, TypeOrmModule.forFeature([User])],
-  providers: [ClerkStrategy, ClerkClientProvider],
-  exports: [PassportModule, TypeOrmModule],
+    imports: [
+        PassportModule,
+        ConfigModule,
+    ],
+    providers: [
+        ClerkStrategy,
+        ClerkClientProvider,
+    ],
+    exports: [
+        PassportModule,
+    ],
 })
 export class AuthModule {}
