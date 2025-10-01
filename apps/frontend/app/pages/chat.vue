@@ -6,7 +6,7 @@
       </template>
 
       <!-- Messages -->
-      <div ref="messagesContainer" class="flex-1 overflow-y-auto space-y-4 p-4">
+      <div ref="messagesContainer" class="flex-1 overflow-y-auto space-y-4 p-4" style="height: 80vh; min-height: 200px;">
         <div
             v-for="message in messages"
             :key="message.id"
@@ -31,7 +31,7 @@
       </div>
 
       <!-- Message Input -->
-      <div class="border-t p-4">
+      <div class="border-t p-4 bg-white sticky bottom-0 z-10">
         <form @submit.prevent="sendMessage" class="flex space-x-2">
           <UInput
               v-model="newMessage"
