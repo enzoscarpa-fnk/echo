@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// User model - stores minimal info from Clerk
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique // Clerk user ID
+  email     String   @unique
+  username  String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sentMessages             Message[]                 @relation("MessageSender")
+  conversationParticipants ConversationParticipant[]
+
+  @@map("users")
+}
+
+// Conversation model - represents a chat (1:1 or group)
+model Conversation {
+  id        String   @id @default(uuid())
+  name      String? // Optional name for group chats
+  isGroup   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  messages     Message[]
+  participants ConversationParticipant[]
+
+  @@map("conversations")
+}
+
+// ConversationParticipant - many-to-many relation between User and Conversation
+model ConversationParticipant {
+  id             String    @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime  @default(now())
+  lastReadAt     DateTime? // For read receipts feature later
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId]) // Prevent duplicate participants
+  @@map("conversation_participants")
+}
+
+// Message model - represents a message in a conversation
+model Message {
+  id             String   @id @default(uuid())
+  content        String
+  conversationId String
+  senderId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
