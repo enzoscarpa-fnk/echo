@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './database/prisma.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
     imports: [
@@ -15,6 +16,7 @@ import { PrismaModule } from './database/prisma.module';
         PassportModule.register({ defaultStrategy: 'clerk' }),
         PrismaModule,
         AuthModule,
+        MessagesModule,
     ],
     controllers: [AppController],
     providers: [AppService],
