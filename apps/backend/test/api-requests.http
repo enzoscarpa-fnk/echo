@@ -26,9 +26,9 @@ Content-Type: application/json
 
 {
   "content": "Hello World!",
-  "conversationId": "1"
+  "conversationId": "b522f6ec-3e3d-4844-8d47-112754bf822e"
 }
 
 ### Get Messages
-GET {{baseUrl}}/messages?conversationId=1
+GET {{baseUrl}}/messages?conversationId=b522f6ec-3e3d-4844-8d47-112754bf822e
 Authorization: Bearer {{token}}

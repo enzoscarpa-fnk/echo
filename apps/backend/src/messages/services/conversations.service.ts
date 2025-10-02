@@ -10,8 +10,11 @@ export class ConversationsService {
     async create(createConversationDto: CreateConversationDto, currentUserId: string) {
         const { participantIds, name, isGroup } = createConversationDto;
 
+        // If participantIds is undefined, use empty array
+        const participants = participantIds || [];
+
         // Add current user to participants if not already included
-        const allParticipantIds = [...new Set([currentUserId, ...participantIds])];
+        const allParticipantIds = [...new Set([currentUserId, ...participants])];
 
         // Validate that all users exist
         const users = await this.prisma.user.findMany({
