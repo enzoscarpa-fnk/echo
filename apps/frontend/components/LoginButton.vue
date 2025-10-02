@@ -8,7 +8,7 @@ const onClick = () => {
 </script>
 
 <template>
-  <button class="rounded-full my-2 px-3 py-1 bg-yellow-400 border-2 border-yellow-500 text-white font-bold" @click="onClick">
-    Custom Clerk Sign In
+  <button class="rounded-full my-4 px-3 py-1 bg-cyan-900 border-2 border-teal-400 text-teal-400 font-bold" @click="onClick">
+    Sign in
   </button>
 </template>

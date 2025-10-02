@@ -1,2 +1,6 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+@source '../../app/app.vue';
+@source '../../components/**/*';
+@source '../../layouts/**/*';
+@source '../../pages/**/*';

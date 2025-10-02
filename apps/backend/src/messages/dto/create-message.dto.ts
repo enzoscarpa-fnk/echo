@@ -1,24 +1,12 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { MessageType } from '../entities/message.entity';
+import { IsString, IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateMessageDto {
-  @IsString()
-  @IsNotEmpty()
-  content: string;
+    @IsString()
+    @IsNotEmpty()
+    content: string;
 
-  @IsEnum(MessageType)
-  @IsOptional()
-  type?: MessageType = MessageType.TEXT;
+    @IsUUID('4')
+    conversationId: string;
 
-  @IsString()
-  @IsOptional()
-  attachmentUrl?: string;
-
-  @IsUUID()
-  @IsNotEmpty()
-  conversationId: string;
-
-  @IsUUID()
-  @IsNotEmpty()
-  senderId: string;
+    // senderId will come from Clerk auth (req.user)
 }

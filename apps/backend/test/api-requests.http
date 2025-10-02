@@ -1,0 +1,34 @@
+### Variables
+@baseUrl = http://localhost:3001
+@token = eyJhbGciOiJSUzI1NiIsImNhdCI6ImNsX0I3ZDRQRDIyMkFBQSIsImtpZCI6Imluc18zMmVTeTlyZ1p5U3l3NElERWVPa0Zsandnb2siLCJ0eXAiOiJKV1QifQ.eyJlbWFpbCI6ImNoYW5nemhpaG9AaG90bWFpbC5jb20iLCJleHAiOjE3NTk0MTYwMzYsImlhdCI6MTc1OTQxMjQzNiwiaWQiOiJ1c2VyXzMyanR6YjRXSUJZM1BPNVFLVnRJeTA4V2RoYyIsImlzcyI6Imh0dHBzOi8vbm90YWJsZS1zdW5maXNoLTUzLmNsZXJrLmFjY291bnRzLmRldiIsImp0aSI6IjI3N2Y0OWJkN2RlYzI1MmUzNjZiIiwibmJmIjoxNzU5NDEyNDMxLCJzdWIiOiJ1c2VyXzMyanR6YjRXSUJZM1BPNVFLVnRJeTA4V2RoYyIsInVzZXJuYW1lIjoiY2hhbmcifQ.FYgexg-FPGa0PAaQzzG83oWjmng4HHvaDrYNVGJZpXl7YtT85S7vHmkXncGUWZ9t7yVH3BKuQR-z3oRYGPCLGbTmYNGPYPEiig9ZOYBDqtqrIQ59lALhjHWZDjnm7UWzCZrzxAunzTc5JS3w7_1qOFjuIa17m5iJnDE6_JOvv25QdOiF9IxOvyceC_dGDyRNevXkjw-dIR1Ytw1nIi-oBub7ivKkpA5dN1x7l2BR_sDAuinvziTHhQo9LYH-kWwp3W2TjHo3b4PxfYnhRbYoAuxsMsJGmQHAciBdMw5zkXyM_JsNUsHF-5Mu6jDvNpK3Ahjr5C9NPi8kPiL7dLEkkA
+
+### Test Health Check
+GET {{baseUrl}}/
+Accept: application/json
+
+### Get All Conversations (authentifié)
+GET {{baseUrl}}/conversations
+Authorization: Bearer {{token}}
+
+### Create Conversation
+POST {{baseUrl}}/conversations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "First chat"
+}
+
+### Send Message
+POST {{baseUrl}}/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "content": "Hello World!",
+  "conversationId": "b522f6ec-3e3d-4844-8d47-112754bf822e"
+}
+
+### Get Messages
+GET {{baseUrl}}/messages?conversationId=b522f6ec-3e3d-4844-8d47-112754bf822e
+Authorization: Bearer {{token}}

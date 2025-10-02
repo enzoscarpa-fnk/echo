@@ -1,97 +1,152 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
-import { Conversation } from '../entities/conversation.entity';
-import { ConversationParticipant } from '../entities/conversation-participant.entity';
-import { User } from '../../auth/entities/user.entity';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service';
 import { CreateConversationDto } from '../dto/create-conversation.dto';
 
 @Injectable()
 export class ConversationsService {
-  constructor(
-    @InjectRepository(Conversation)
-    private readonly conversationRepository: Repository<Conversation>,
-    @InjectRepository(ConversationParticipant)
-    private readonly conversationParticipantRepository: Repository<ConversationParticipant>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-  ) {}
+    constructor(private readonly prisma: PrismaService) {}
 
-  async create(createConversationDto: CreateConversationDto): Promise<Conversation> {
-    const { participantIds, ...conversationData } = createConversationDto;
+    // Create a new conversation with participants
+    async create(createConversationDto: CreateConversationDto, currentUserId: string) {
+        const { participantIds, name, isGroup } = createConversationDto;
 
-    // Vérifier que tous les participants existent
-    const participants = await this.userRepository.find({
-      where: { id: In(participantIds) },
+        // If participantIds is undefined, use empty array
+        const participants = participantIds || [];
+
+        // Add current user to participants if not already included
+        const allParticipantIds = [...new Set([currentUserId, ...participants])];
+
+        // Validate that all users exist
+        const users = await this.prisma.user.findMany({
+            where: { id: { in: allParticipantIds } },
+        });
+
+        if (users.length !== allParticipantIds.length) {
+            throw new BadRequestException('One or more user IDs are invalid');
+        }
+
+        // Create conversation with participants
+        const conversation = await this.prisma.conversation.create({
+        data: {
+            name,
+            isGroup: isGroup ?? false,
+            participants: {
+            create: allParticipantIds.map((userId) => ({
+                userId,
+            })),
+        }},
+        include: {
+            participants: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                                clerkId: true,
+                                email: true,
+                                username: true,
+                                imageUrl: true,
+                        },
+                    },
+                },
+            },
+        },
     });
 
-    if (participants.length !== participantIds.length) {
-      throw new NotFoundException('One or more participants not found');
+
+        return conversation;
     }
 
-    // Créer la conversation
-    const conversation = this.conversationRepository.create(conversationData);
-    const savedConversation = await this.conversationRepository.save(conversation);
+    // Get all conversations for a user
+    async findAllForUser(userId: string) {
+        const conversations = await this.prisma.conversation.findMany({
+            where: {
+                participants: {
+                    some: {
+                        userId,
+                    },
+                },
+            },
+            include: {
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                clerkId: true,
+                                email: true,
+                                username: true,
+                                imageUrl: true,
+                            },
+                        },
+                    },
+                },
+                messages: {
+                    take: 1,
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    include: {
+                        sender: {
+                            select: {
+                                id: true,
+                                username: true,
+                                imageUrl: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                updatedAt: 'desc',
+            },
+        });
 
-    // Ajouter les participants via la table de liaison
-    const conversationParticipants = participantIds.map(userId =>
-      this.conversationParticipantRepository.create({
-        conversationId: savedConversation.id,
-        userId: userId,
-      })
-    );
-
-    await this.conversationParticipantRepository.save(conversationParticipants);
-
-    return savedConversation;
-  }
-
-  async findAllByUser(userId: string): Promise<any[]> {
-    // Trouver toutes les conversations où l'utilisateur participe
-    const userConversations = await this.conversationParticipantRepository
-      .createQueryBuilder('cp')
-      .leftJoinAndSelect('cp.conversationId', 'conversation')
-      .where('cp.userId = :userId', { userId })
-      .getMany();
-
-    // Pour l'instant, retourner un tableau simple
-    // On enrichira plus tard avec les messages et autres participants
-    return userConversations.map(uc => ({
-      id: uc.conversationId,
-      userId: uc.userId,
-      joinedAt: uc.joinedAt,
-    }));
-  }
-
-  async findOne(id: string): Promise<Conversation> {
-    const conversation = await this.conversationRepository.findOne({
-      where: { id },
-    });
-
-    if (!conversation) {
-      throw new NotFoundException(`Conversation with ID ${id} not found`);
+        return conversations;
     }
 
-    return conversation;
-  }
+    // Get a single conversation by ID
+    async findOne(id: string, userId: string) {
+        const conversation = await this.prisma.conversation.findFirst({
+            where: {
+                id,
+                participants: {
+                    some: {
+                        userId,
+                    },
+                },
+            },
+            include: {
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                clerkId: true,
+                                email: true,
+                                username: true,
+                                imageUrl: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
 
-  async getParticipants(conversationId: string): Promise<User[]> {
-    const participants = await this.conversationParticipantRepository
-      .createQueryBuilder('cp')
-      .leftJoinAndSelect(User, 'user', 'user.id = cp.userId')
-      .where('cp.conversationId = :conversationId', { conversationId })
-      .getRawMany();
+        if (!conversation) {
+            throw new NotFoundException(`Conversation with ID ${id} not found`);
+        }
 
-    return participants.map(p => ({
-      id: p.user_id,
-      email: p.user_email,
-      firstName: p.user_firstName,
-      lastName: p.user_lastName,
-      avatar: p.user_avatar,
-      clerkId: p.user_clerkId,
-      isActive: p.user_isActive,
-      createdAt: p.user_createdAt,
-      updatedAt: p.user_updatedAt,
-    } as User));
-  }
+        return conversation;
+    }
+
+    // Delete a conversation (only if user is participant)
+    async remove(id: string, userId: string) {
+        const conversation = await this.findOne(id, userId);
+
+        await this.prisma.conversation.delete({
+            where: { id: conversation.id },
+        });
+
+        return { message: 'Conversation deleted successfully' };
+    }
 }

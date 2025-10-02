@@ -1,64 +1,56 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-  ValidationPipe,
-  ParseUUIDPipe,
+    Controller,
+    Get,
+    Post,
+    Body,
+    Patch,
+    Param,
+    Delete,
+    UseGuards,
+    Query,
 } from '@nestjs/common';
 import { MessagesService } from '../services/messages.service';
 import { CreateMessageDto } from '../dto/create-message.dto';
 import { UpdateMessageDto } from '../dto/update-message.dto';
+import { ClerkAuthGuard } from '../../auth/clerk-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 
 @Controller('messages')
+@UseGuards(ClerkAuthGuard) // All routes require authentication
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+    constructor(private readonly messagesService: MessagesService) {}
 
-  @Post()
-  async create(
-    @Body() createMessageDto: CreateMessageDto, // ← Retire ValidationPipe temporairement
-  ): Promise<any> {
-    console.log('POST /messages - Received:', createMessageDto); // ← Ajoute ce log
-    return await this.messagesService.create(createMessageDto);
-  }
-
-  @Get()
-  async findByConversation(
-    @Query('conversationId') conversationId: string, // ← Retire ParseUUIDPipe temporairement
-  ): Promise<any[]> {
-    console.log('GET /messages - conversationId:', conversationId); // ← Ajoute ce log
-
-    if (!conversationId) {
-      return []; // Retourne liste vide si pas de conversationId
+    // POST /messages - Create a new message
+    @Post()
+    create(
+        @Body() createMessageDto: CreateMessageDto,
+        @CurrentUser() user: any,
+    ) {
+        return this.messagesService.create(createMessageDto, user.id);
     }
 
-    return await this.messagesService.findAllByConversation(conversationId);
-  }
+    // GET /messages?conversationId=xxx - Get all messages in a conversation
+    @Get()
+    findAll(
+        @Query('conversationId') conversationId: string,
+        @CurrentUser() user: any,
+    ) {
+        return this.messagesService.findAllInConversation(conversationId, user.id);
+    }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string): Promise<any> { // ← Retire ParseUUIDPipe temporairement
-    return await this.messagesService.findOne(id);
-  }
+    // PATCH /messages/:id - Update a message
+    @Patch(':id')
+    update(
+        @Param('id') id: string,
+        @Body() updateMessageDto: UpdateMessageDto,
+        @CurrentUser() user: any,
+    ) {
+        return this.messagesService.update(id, updateMessageDto, user.id);
+    }
 
-  @Patch(':id')
-  async update(
-    @Param('id') id: string, // ← Retire ParseUUIDPipe temporairement
-    @Body() updateMessageDto: UpdateMessageDto, // ← Retire ValidationPipe temporairement
-    @Query('userId') userId: string, // ← Retire ParseUUIDPipe temporairement
-  ): Promise<any> {
-    return await this.messagesService.update(id, updateMessageDto, userId);
-  }
-
-  @Delete(':id')
-  async remove(
-    @Param('id') id: string, // ← Retire ParseUUIDPipe temporairement
-    @Query('userId') userId: string, // ← Retire ParseUUIDPipe temporairement
-  ): Promise<{ message: string }> {
-    await this.messagesService.remove(id, userId);
-    return { message: 'Message deleted successfully' };
-  }
+    // DELETE /messages/:id - Delete a message
+    @Delete(':id')
+    remove(@Param('id') id: string, @CurrentUser() user: any) {
+        return this.messagesService.remove(id, user.id);
+    }
 }

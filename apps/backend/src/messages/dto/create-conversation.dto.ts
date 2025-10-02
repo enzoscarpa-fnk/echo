@@ -1,28 +1,16 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsArray,
-  IsUUID,
-  ArrayMinSize,
-} from 'class-validator';
-import { ConversationType } from '../entities/conversation.entity';
+import { IsString, IsOptional, IsBoolean, IsArray, IsUUID } from 'class-validator';
 
 export class CreateConversationDto {
-  @IsString()
-  @IsOptional()
-  name?: string;
+    @IsArray()
+    @IsUUID('4', { each: true })
+    @IsOptional()
+    participantIds?: string[];
 
-  @IsEnum(ConversationType)
-  @IsOptional()
-  type?: ConversationType = ConversationType.DIRECT;
+    @IsString()
+    @IsOptional()
+    name?: string;
 
-  @IsString()
-  @IsOptional()
-  avatar?: string;
-
-  @IsArray()
-  @IsUUID('4', { each: true })
-  @ArrayMinSize(1)
-  participantIds: string[];
+    @IsBoolean()
+    @IsOptional()
+    isGroup?: boolean;
 }

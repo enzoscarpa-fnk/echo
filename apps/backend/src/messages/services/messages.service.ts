@@ -1,185 +1,141 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Message } from '../entities/message.entity';
-import { User } from '../../auth/entities/user.entity';
+import { PrismaService } from '../../database/prisma.service';
 import { CreateMessageDto } from '../dto/create-message.dto';
 import { UpdateMessageDto } from '../dto/update-message.dto';
 
-// Interface pour le message enrichi avec sender
-interface MessageWithSender {
-  id: string;
-  content: string;
-  type: string;
-  attachmentUrl?: string;
-  isEdited: boolean;
-  editedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  senderId: string;
-  conversationId: string;
-  sender: {
-    id: string;
-    fullName: string;
-    firstName: string;
-    lastName: string;
-    avatar?: string;
-  };
-}
-
 @Injectable()
 export class MessagesService {
-  constructor(
-    @InjectRepository(Message)
-    private readonly messageRepository: Repository<Message>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-  ) {}
+    constructor(private readonly prisma: PrismaService) {}
 
-  async create(createMessageDto: CreateMessageDto): Promise<MessageWithSender> {
-    // Vérifier que l'utilisateur existe
-    const user = await this.userRepository.findOne({
-      where: { id: createMessageDto.senderId }
-    });
+    // Create a new message
+    async create(createMessageDto: CreateMessageDto, senderId: string) {
+        const { content, conversationId } = createMessageDto;
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const message = this.messageRepository.create(createMessageDto);
-    const savedMessage = await this.messageRepository.save(message);
-
-    // Retourner le message avec les informations du sender
-    return {
-      ...savedMessage,
-      sender: {
-        id: user.id,
-        fullName: user.fullName,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        avatar: user.avatar,
-      },
-    };
-  }
-
-  async findAllByConversation(conversationId: string): Promise<MessageWithSender[]> {
-    const messages = await this.messageRepository.find({
-      where: { conversationId },
-      order: { createdAt: 'ASC' },
-    });
-
-    // Enrichir avec les informations des senders - avec type explicite
-    const enrichedMessages: MessageWithSender[] = [];
-
-    for (const message of messages) {
-      const user = await this.userRepository.findOne({
-        where: { id: message.senderId }
-      });
-
-      if (user) {
-        enrichedMessages.push({
-          ...message,
-          sender: {
-            id: user.id,
-            fullName: user.fullName,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            avatar: user.avatar,
-          },
+        // Verify that sender is a participant of the conversation
+        const participant = await this.prisma.conversationParticipant.findFirst({
+            where: {
+                conversationId,
+                userId: senderId,
+            },
         });
-      }
-    }
 
-    return enrichedMessages;
-  }
+        if (!participant) {
+            throw new ForbiddenException('You are not a participant of this conversation');
+        }
 
-  async findOne(id: string): Promise<MessageWithSender> {
-    const message = await this.messageRepository.findOne({
-      where: { id },
+        // Create the message
+        const message = await this.prisma.message.create({
+        data: {
+            content,
+            conversationId,
+            senderId,
+        },
+        include: {
+            sender: {
+                select: {
+                    id: true,
+                        clerkId: true,
+                        email: true,
+                        username: true,
+                        imageUrl: true,
+                },
+            },
+        },
     });
 
-    if (!message) {
-      throw new NotFoundException(`Message with ID ${id} not found`);
-    }
-
-    // Enrichir avec les informations du sender
-    const user = await this.userRepository.findOne({
-      where: { id: message.senderId }
+        // Update conversation updatedAt timestamp
+        await this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: { updatedAt: new Date() },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found for this message');
+        return message;
     }
 
-    return {
-      ...message,
-      sender: {
-        id: user.id,
-        fullName: user.fullName,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        avatar: user.avatar,
-      },
-    };
-  }
+    // Get all messages for a conversation
+    async findAllInConversation(conversationId: string, userId: string) {
+        // Verify user is a participant
+        const participant = await this.prisma.conversationParticipant.findFirst({
+            where: {
+                conversationId,
+                userId,
+            },
+        });
 
-  async update(
-    id: string,
-    updateMessageDto: UpdateMessageDto,
-    userId: string,
-  ): Promise<MessageWithSender> {
-    const message = await this.messageRepository.findOne({
-      where: { id },
-    });
+        if (!participant) {
+            throw new ForbiddenException('You are not a participant of this conversation');
+        }
 
-    if (!message) {
-      throw new NotFoundException(`Message with ID ${id} not found`);
+        const messages = await this.prisma.message.findMany({
+            where: { conversationId },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        clerkId: true,
+                        email: true,
+                        username: true,
+                        imageUrl: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'asc',
+            },
+        });
+
+        return messages;
     }
 
-    if (message.senderId !== userId) {
-      throw new ForbiddenException('You can only edit your own messages');
+    // Update a message (only by sender)
+    async update(id: string, updateMessageDto: UpdateMessageDto, userId: string) {
+        const message = await this.prisma.message.findUnique({
+            where: { id },
+        });
+
+        if (!message) {
+            throw new NotFoundException(`Message with ID ${id} not found`);
+        }
+
+        if (message.senderId !== userId) {
+            throw new ForbiddenException('You can only edit your own messages');
+        }
+
+        const updatedMessage = await this.prisma.message.update({
+            where: { id },
+            data: updateMessageDto,
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        username: true,
+                        imageUrl: true,
+                    },
+                },
+            },
+        });
+
+        return updatedMessage;
     }
 
-    Object.assign(message, updateMessageDto);
-    message.isEdited = true;
-    message.editedAt = new Date();
+    // Delete a message (only by sender)
+    async remove(id: string, userId: string) {
+        const message = await this.prisma.message.findUnique({
+            where: { id },
+        });
 
-    const savedMessage = await this.messageRepository.save(message);
+        if (!message) {
+            throw new NotFoundException(`Message with ID ${id} not found`);
+        }
 
-    // Enrichir avec les informations du sender
-    const user = await this.userRepository.findOne({
-      where: { id: savedMessage.senderId }
-    });
+        if (message.senderId !== userId) {
+            throw new ForbiddenException('You can only delete your own messages');
+        }
 
-    if (!user) {
-      throw new NotFoundException('User not found for this message');
+        await this.prisma.message.delete({
+            where: { id },
+        });
+
+        return { message: 'Message deleted successfully' };
     }
-
-    return {
-      ...savedMessage,
-      sender: {
-        id: user.id,
-        fullName: user.fullName,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        avatar: user.avatar,
-      },
-    };
-  }
-
-  async remove(id: string, userId: string): Promise<void> {
-    const message = await this.messageRepository.findOne({
-      where: { id },
-    });
-
-    if (!message) {
-      throw new NotFoundException(`Message with ID ${id} not found`);
-    }
-
-    if (message.senderId !== userId) {
-      throw new ForbiddenException('You can only delete your own messages');
-    }
-
-    await this.messageRepository.remove(message);
-  }
 }
