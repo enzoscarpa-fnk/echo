@@ -5,8 +5,9 @@ export default defineNuxtConfig({
     alias: {
         '@': resolve(__dirname)
     },
-    compatibilityDate: '2025-09-18',
+    compatibilityDate: '2025-10-02',
     devtools: { enabled: true },
+    ssr: true,
     devServer: {
         port: 3000
     },
@@ -22,6 +23,7 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             clerkPublishableKey: process.env.NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001',
         },
     },
     vite: {
@@ -33,6 +35,9 @@ export default defineNuxtConfig({
         }
     },
     clerk: {
+        appearance: {
+            baseTheme: 'dark', // or 'light'
+        },
         signInFallbackRedirectUrl: '/',
         signInForceRedirectUrl: '/chat',
     },
