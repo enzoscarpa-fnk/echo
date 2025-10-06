@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { user } = useUser()
+const { user, isLoaded } = useUser()
 const { signOut } = useAuth()
 const clerk = useClerk()
 
@@ -32,14 +32,16 @@ onBeforeUnmount(() => {
 })
 
 const onOpenProfile = () => {
-  if (clerk) {
-    clerk.openUserProfile()
+  if (isLoaded.value && clerk.value) {
+    clerk.value.openUserProfile()
   }
 }
 
 const onSignOut = async () => {
-  await signOut()
-  await navigateTo('/')
+  if (isLoaded.value) {
+    await signOut()
+    await navigateTo('/')
+  }
 }
 </script>
 
