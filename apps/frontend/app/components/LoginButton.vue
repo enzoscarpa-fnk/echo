@@ -2,22 +2,9 @@
 const { isLoaded } = useAuth()
 const clerk = useClerk()
 
-// Debug logs
-watch([isLoaded], ([loaded]) => {
-  console.log('Clerk isLoaded:', loaded)
-  console.log('Clerk instance:', clerk)
-})
-
 const openSignIn = () => {
-  console.log('Button clicked!')
-  console.log('isLoaded:', isLoaded.value)
-  console.log('clerk:', clerk)
-
   if (isLoaded.value && clerk.value) {
-    console.log('Opening sign in modal...')
     clerk.value.openSignIn()
-  } else {
-    console.log('Clerk not ready yet')
   }
 }
 </script>

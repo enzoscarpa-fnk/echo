@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import LoginButton from "~~/components/LoginButton.vue";
-import UserButton from "~~/components/UserButton.vue";
+import LoginButton from "~/components/LoginButton.vue";
+import UserButton from "~/components/UserButton.vue";
+
+const route = useRoute()
+const isHomePage = computed(() => route.path === '/')
 </script>
 
 <template>
   <div>
     <header
-      v-if="$route.path === '/'"
+      v-if="isHomePage"
       class="fixed top-0 right-0 z-50 h-16 flex justify-end items-center gap-2 px-6"
     >
       <SignedOut>

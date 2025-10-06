@@ -1,3 +1,4 @@
+import { defineNuxtConfig } from 'nuxt/config'
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from 'path'
 
@@ -8,6 +9,17 @@ export default defineNuxtConfig({
     compatibilityDate: '2025-10-02',
     devtools: { enabled: true },
     ssr: false,
+    srcDir: 'app',
+    pages: true,
+    router: {
+        options: {
+            hashMode: false
+        }
+    },
+    app: {
+        baseURL: '/',
+        buildAssetsDir: '/_nuxt/'
+    },
     devServer: {
         port: 3000
     },

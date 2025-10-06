@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LoginButton from '~~/components/LoginButton.vue'
+import LoginButton from '~/components/LoginButton.vue'
 </script>
 
 <template>
@@ -23,16 +23,17 @@ import LoginButton from '~~/components/LoginButton.vue'
         </SignedOut>
 
         <SignedIn>
-          <UButton
-              to="/dashboard"
-              size="xl"
-              block
-              color="primary"
-              icon="i-heroicons-arrow-right"
-              trailing
-          >
-            Go to Dashboard
-          </UButton>
+          <NuxtLink to="/dashboard" class="block">
+            <UButton
+                size="xl"
+                block
+                color="primary"
+                icon="i-heroicons-arrow-right"
+                trailing
+            >
+              Go to Dashboard
+            </UButton>
+          </NuxtLink>
         </SignedIn>
       </div>
     </div>
@@ -109,13 +110,14 @@ import LoginButton from '~~/components/LoginButton.vue'
             </SignedOut>
 
             <SignedIn>
-              <UButton
-                  to="/dashboard"
-                  size="lg"
-                  block
-              >
-                Go to Dashboard
-              </UButton>
+              <NuxtLink to="/dashboard" class="block">
+                <UButton
+                    size="lg"
+                    block
+                >
+                  Go to Dashboard
+                </UButton>
+              </NuxtLink>
             </SignedIn>
           </div>
         </UCard>

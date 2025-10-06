@@ -38,15 +38,15 @@ const onOpenProfile = () => {
 }
 
 const onSignOut = async () => {
-  if (isLoaded.value) {
-    await signOut()
+  if (isLoaded.value && clerk.value) {
+    await clerk.value.signOut()
     await navigateTo('/')
   }
 }
 </script>
 
 <template>
-  <div v-if="user" class="relative">
+  <div v-if="isLoaded && user" class="relative">
     <button
         ref="triggerRef"
         class="flex items-center gap-2 rounded-full my-4"
