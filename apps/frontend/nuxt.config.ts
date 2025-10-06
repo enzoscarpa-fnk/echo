@@ -7,7 +7,7 @@ export default defineNuxtConfig({
     },
     compatibilityDate: '2025-10-02',
     devtools: { enabled: true },
-    ssr: true,
+    ssr: false,
     devServer: {
         port: 3000
     },
@@ -33,13 +33,5 @@ export default defineNuxtConfig({
         css: {
             preprocessorOptions: {}
         }
-    },
-    clerk: {
-        publishableKey: process.env.NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-        appearance: {
-            baseTheme: 'dark', // or 'light'
-        },
-        signInFallbackRedirectUrl: '/dashboard',
-        signInForceRedirectUrl: '/dashboard',
     },
 })

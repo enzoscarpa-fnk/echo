@@ -1,25 +1,26 @@
 <script setup lang="ts">
 import LoginButton from "~~/components/LoginButton.vue";
 import UserButton from "~~/components/UserButton.vue";
-import { SignedIn, SignedOut } from 'vue-clerk'
 </script>
 
 <template>
-  <header
+  <div>
+    <header
       v-if="$route.path === '/'"
       class="fixed top-0 right-0 z-50 h-16 flex justify-end items-center gap-2 px-6"
-  >
-    <SignedOut>
-      <LoginButton />
-    </SignedOut>
-    <SignedIn>
-      <UserButton />
-    </SignedIn>
-  </header>
+    >
+      <SignedOut>
+        <LoginButton />
+      </SignedOut>
+      <SignedIn>
+        <UserButton />
+      </SignedIn>
+    </header>
 
-  <main class="pt-18">
-    <NuxtPage />
-  </main>
+    <main class="pt-18">
+      <NuxtPage />
+    </main>
+  </div>
 </template>
 
 <style>

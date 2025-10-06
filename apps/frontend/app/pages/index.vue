@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LoginButton from '~~/components/LoginButton.vue'
-import { SignedIn, SignedOut } from 'vue-clerk'
 </script>
 
 <template>
@@ -8,10 +7,9 @@ import { SignedIn, SignedOut } from 'vue-clerk'
     <!-- Hero Section -->
     <div class="flex-1 flex flex-col items-center justify-center px-6 py-20 bg-gradient-to-b from-blue-50 to-white">
       <div class="text-center max-w-md">
-        <!-- Logo -->
         <div class="mb-8">
           <h1 class="text-7xl font-bold text-blue-600 mb-3">echo</h1>
-          <p class="text-xl text-gray-600">connect with friends, instantly</p>
+          <p class="text-xl text-gray-600">Connect with friends instantly</p>
         </div>
 
         <!-- CTA Button -->
@@ -105,9 +103,11 @@ import { SignedIn, SignedOut } from 'vue-clerk'
                 <span>Mobile & web access</span>
               </li>
             </ul>
+
             <SignedOut>
               <LoginButton class="!block !w-full !text-center" />
             </SignedOut>
+
             <SignedIn>
               <UButton
                   to="/dashboard"
@@ -147,13 +147,7 @@ import { SignedIn, SignedOut } from 'vue-clerk'
                 <span class="text-gray-500">Custom themes</span>
               </li>
             </ul>
-            <UButton
-                size="lg"
-                block
-                disabled
-            >
-              Coming Soon
-            </UButton>
+            <UButton size="lg" block disabled>Coming Soon</UButton>
           </div>
         </UCard>
       </div>
