@@ -10,7 +10,7 @@ const isHomePage = computed(() => route.path === '/')
   <div>
     <header
       v-if="isHomePage"
-      class="fixed top-0 right-0 z-50 h-16 flex justify-end items-center gap-2 px-6"
+      class="fixed top-0 left-0 right-0 w-full h-16 flex justify-end items-center gap-2 px-6 bg-teal-700/80 backdrop-blur-sm z-50 shadow-sm"
     >
       <SignedOut>
         <LoginButton />
@@ -20,7 +20,7 @@ const isHomePage = computed(() => route.path === '/')
       </SignedIn>
     </header>
 
-    <main class="pt-18">
+    <main>
       <NuxtPage />
     </main>
   </div>
@@ -45,6 +45,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   margin: 0;
   padding: 0;
+  background-color: white;
 }
 
 * {

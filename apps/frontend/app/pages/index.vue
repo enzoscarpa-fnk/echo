@@ -3,13 +3,13 @@ import LoginButton from '~/components/LoginButton.vue'
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen flex flex-col pt-16">
     <!-- Hero Section -->
     <div class="flex-1 flex flex-col items-center justify-center px-6 py-20 bg-gradient-to-b from-blue-50 to-white">
       <div class="text-center max-w-md">
         <div class="mb-8">
           <h1 class="text-7xl font-bold text-blue-600 mb-3">echo</h1>
-          <p class="text-xl text-gray-600">Connect with friends instantly</p>
+          <p class="text-xl text-gray-600">Connect with friends, instantly</p>
         </div>
 
         <!-- CTA Button -->
@@ -17,7 +17,7 @@ import LoginButton from '~/components/LoginButton.vue'
           <div class="space-y-3">
             <LoginButton class="!block !w-full !text-center !text-lg !py-3" />
             <p class="text-sm text-gray-500">
-              Create your account in seconds
+              or create your account in seconds
             </p>
           </div>
         </SignedOut>

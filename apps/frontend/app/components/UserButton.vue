@@ -66,17 +66,17 @@ const onSignOut = async () => {
         v-show="isOpen"
         ref="menuRef"
         role="menu"
-        class="absolute right-0 mt-2 w-56 rounded-xl border bg-white shadow-lg z-50"
+        class="absolute right-0 mt-2 w-56 rounded-xl border bg-white text-cyan-700 shadow-lg z-50"
     >
       <button
-          class="w-full px-4 py-2 text-left hover:bg-teal-50"
+          class="w-full px-4 py-2 rounded-t-xl text-left hover:bg-teal-100"
           role="menuitem"
           @click="onOpenProfile"
       >
         Profile
       </button>
       <NuxtLink
-          class="block px-4 py-2 hover:bg-teal-50"
+          class="block px-4 py-2 hover:bg-teal-100"
           role="menuitem"
           to="/settings"
           @click="close"
@@ -84,16 +84,16 @@ const onSignOut = async () => {
         Settings
       </NuxtLink>
       <NuxtLink
-          class="block px-4 py-2 hover:bg-teal-50"
+          class="block px-4 py-2 hover:bg-teal-100"
           role="menuitem"
           to="/pricing"
           @click="close"
       >
         Pricing
       </NuxtLink>
-      <hr class="my-1" />
+      <hr/>
       <button
-          class="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50"
+          class="w-full px-4 py-2 rounded-b-xl text-left text-red-600 hover:bg-red-50"
           role="menuitem"
           @click="onSignOut"
       >
