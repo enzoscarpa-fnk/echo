@@ -20,6 +20,9 @@ async function bootstrap() {
         }),
     );
 
+    // Add global prefix 'api' to all routes
+    app.setGlobalPrefix('api');
+
     await app.listen(3001);
     console.log('Backend running on http://localhost:3001');
 }
