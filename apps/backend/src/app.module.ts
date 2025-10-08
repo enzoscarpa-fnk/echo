@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './database/prisma.module';
 import { MessagesModule } from './messages/messages.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { MessagesModule } from './messages/messages.module';
         PrismaModule,
         AuthModule,
         MessagesModule,
+        WebhooksModule,
     ],
     controllers: [AppController],
     providers: [AppService],

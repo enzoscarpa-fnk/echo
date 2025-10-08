@@ -12,8 +12,10 @@ model User {
   id        String   @id @default(uuid())
   clerkId   String   @unique // Clerk user ID
   email     String   @unique
-  username  String?
-  imageUrl  String?
+  username  String? // Clerk username (if enabled)
+  firstName String? // Clerk user's first name
+  lastName  String? // Clerk user's last name
+  imageUrl  String? // Clerk profile picture URL
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
