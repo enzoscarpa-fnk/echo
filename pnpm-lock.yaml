@@ -181,6 +181,9 @@ importers:
       eslint:
         specifier: ^9.35.0
         version: 9.37.0(jiti@2.6.1)
+      pusher-js:
+        specifier: ^8.4.0
+        version: 8.4.0
       tailwindcss:
         specifier: ^4.1.13
         version: 4.1.14
@@ -5687,6 +5690,9 @@ packages:
 
   pure-rand@7.0.1:
     resolution: {integrity: sha512-oTUZM/NAZS8p7ANR3SHh30kXB+zK2r2BPcEn/awJIbOvq82WoMN4p62AWWp3Hhw50G0xMsw1mhIBLqHw64EcNQ==}
+
+  pusher-js@8.4.0:
+    resolution: {integrity: sha512-wp3HqIIUc1GRyu1XrP6m2dgyE9MoCsXVsWNlohj0rjSkLf+a0jLvEyVubdg58oMk7bhjBWnFClgp8jfAa6Ak4Q==}
 
   pusher@5.2.0:
     resolution: {integrity: sha512-F6LNiZyJsIkoHLz+YurjKZ1HH8V1/cMggn4k97kihjP3uTvm0P4mZzSFeHOWIy+PlJ2VInJBhUFJBYLsFR5cjg==}
@@ -13526,6 +13532,10 @@ snapshots:
   pure-rand@6.1.0: {}
 
   pure-rand@7.0.1: {}
+
+  pusher-js@8.4.0:
+    dependencies:
+      tweetnacl: 1.0.3
 
   pusher@5.2.0:
     dependencies:

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ConversationParticipant } from '~/types'
+
 definePageMeta({
   middleware: 'auth'
 })
@@ -14,27 +16,29 @@ const newMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref<HTMLElement>()
 
-const {  conversation } = await useAsyncData(
+const { conversation } = await useAsyncData(
     `conversation-${conversationId}`,
     () => getConversation(conversationId)
 )
 
-const {  messages, refresh: refreshMessages } = await useAsyncData(
+const { messages, refresh: refreshMessages } = await useAsyncData(
     `messages-${conversationId}`,
     () => getMessages(conversationId)
 )
 
+const { $pusher } = useNuxtApp()
+
 const getConversationName = () => {
   if (conversation.value?.name) return conversation.value.name
   const otherParticipant = conversation.value?.participants?.find(
-      (p: any) => p.userId !== user.value?.id
+      (p: ConversationParticipant) => p.userId !== user.value?.id
   )
   return otherParticipant?.user.username || 'Unknown'
 }
 
 const getConversationAvatar = () => {
   const otherParticipant = conversation.value?.participants?.find(
-      (p: any) => p.userId !== user.value?.id
+      (p: ConversationParticipant) => p.userId !== user.value?.id
   )
   return otherParticipant?.user.imageUrl || null
 }
@@ -71,11 +75,31 @@ const sendMessage = async () => {
   }
 }
 
-// Auto-scroll on mount
+// Auto-scroll + intégration Pusher temps réel
 onMounted(() => {
+  const channel = $pusher.subscribe('conversation-' + conversationId)
+  channel.bind('new-message', async (_any) => {
+    await refreshMessages()
+    nextTick(() => {
+      if (messagesContainer.value) {
+        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      }
+    })
+  })
+
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
+
+  // Scroll au montage
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
+})
+
+onBeforeUnmount(() => {
+  // Clean up l’abonnement au channel
+  $pusher.unsubscribe('conversation-' + conversationId)
 })
 </script>
 
