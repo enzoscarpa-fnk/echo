@@ -8,6 +8,7 @@ import { PrismaModule } from './database/prisma.module';
 import { MessagesModule } from './messages/messages.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { UsersModule } from './users/users.module';
+import { ConversationsModule } from './conversations/conversations.module';
 
 @Module({
     imports: [
@@ -19,6 +20,7 @@ import { UsersModule } from './users/users.module';
         PrismaModule,
         AuthModule,
         UsersModule,
+        ConversationsModule,
         MessagesModule,
         WebhooksModule,
     ],
