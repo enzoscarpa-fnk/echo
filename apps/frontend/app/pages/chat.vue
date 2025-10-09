@@ -18,7 +18,7 @@
               :class="
               message.sender.id === currentUserId
                 ? 'bg-primary-500 text-white'
-                : 'bg-gray-200 text-gray-900'
+                : 'bg-blue-300 text-gray-900'
             "
           >
             <p class="text-sm font-medium">{{ message.sender.fullName }}</p>

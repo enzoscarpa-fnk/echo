@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
+import { pusher } from '../providers/pusher.provider';
 
 @Injectable()
 export class MessagesService {
@@ -59,6 +60,15 @@ export class MessagesService {
             where: { id: conversationId },
             data: { updatedAt: new Date() },
         });
+
+      // 🔔 Emit a Pusher event for real-time update
+      await pusher.trigger(
+        `conversation-${conversationId}`,   // channel name
+        'new-message',                     // event name
+        {
+          message,
+        }
+      );
 
         return message;
     }
