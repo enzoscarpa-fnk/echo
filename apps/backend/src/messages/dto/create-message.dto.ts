@@ -1,12 +1,11 @@
-import { IsString, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateMessageDto {
     @IsString()
-    @IsNotEmpty()
+    @IsNotEmpty({ message: 'Message content is required' })
     content: string;
 
-    @IsUUID('4')
-    conversationId: string;
-
-    // senderId will come from Clerk auth (req.user)
+    @IsOptional()
+    @IsString()
+    attachmentUrl?: string; // For future file attachments
 }

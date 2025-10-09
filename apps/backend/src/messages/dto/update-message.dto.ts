@@ -1,7 +1,7 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 
 export class UpdateMessageDto {
-    @IsOptional()
     @IsString()
+    @IsNotEmpty({ message: 'Message content is required' })
     content?: string;
 }
