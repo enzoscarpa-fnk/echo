@@ -1,3 +1,5 @@
+import { MemberRole } from '@prisma/client';
+
 export class ConversationResponseDto {
     id: string;
     name?: string;
@@ -11,6 +13,7 @@ export class ConversationResponseDto {
 export class ParticipantDto {
     id: string;
     userId: string;
+    role: MemberRole; // ADMIN or MEMBER
     user: {
         id: string;
         clerkId: string;
@@ -19,6 +22,8 @@ export class ParticipantDto {
         firstName?: string;
         lastName?: string;
         imageUrl?: string;
+        isOnline: boolean;
+        lastSeenAt: Date;
     };
     joinedAt: Date;
 }

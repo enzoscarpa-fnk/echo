@@ -1,6 +1,8 @@
 import {
     Controller,
     Get,
+    Post,
+    Body,
     Param,
     Query,
     UseGuards,
@@ -52,5 +54,58 @@ export class UsersController {
     @Get(':id')
     async findOne(@Param('id') id: string) {
         return this.usersService.findOne(id);
+    }
+
+    /**
+     * POST /users/status/online
+     * Mark user as online (appelé au login/refresh)
+     */
+    @Post('status/online')
+    async setOnline(@Req() req: any) {
+        return this.usersService.setUserOnline(req.user.id);
+    }
+
+    /**
+     * POST /users/status/offline
+     * Mark user as offline (appelé au logout/beforeunload)
+     */
+    @Post('status/offline')
+    async setOffline(@Req() req: any) {
+        return this.usersService.setUserOffline(req.user.id);
+    }
+
+    /**
+     * POST /users/status/heartbeat
+     * Update last seen (appelé toutes les 30 secondes)
+     */
+    @Post('status/heartbeat')
+    async heartbeat(@Req() req: any) {
+        return this.usersService.updateLastSeen(req.user.id);
+    }
+
+    /**
+     * GET /users/status/contacts
+     * Get status of all user's contacts
+     */
+    @Get('status/contacts')
+    async getContactsStatus(@Req() req: any) {
+        return this.usersService.getContactsStatus(req.user.id);
+    }
+
+    /**
+     * POST /users/pusher/auth
+     * Authorize Pusher channel subscription
+     */
+    @Post('pusher/auth')
+    async authorizePusher(
+        @Body('socket_id') socketId: string,
+        @Body('channel_name') channelName: string,
+        @Req() req: any,
+    ) {
+        return this.usersService.authorizeChannel(
+            socketId,
+            channelName,
+            req.user.id,
+        );
     }
 }

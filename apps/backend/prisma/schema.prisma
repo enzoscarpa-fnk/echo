@@ -9,13 +9,18 @@ datasource db {
 
 // User model - stores minimal info from Clerk
 model User {
-  id        String   @id @default(uuid())
-  clerkId   String   @unique // Clerk user ID
-  email     String   @unique
+  id        String  @id @default(uuid())
+  clerkId   String  @unique // Clerk user ID
+  email     String  @unique
   username  String? // Clerk username (if enabled)
   firstName String? // Clerk user's first name
   lastName  String? // Clerk user's last name
   imageUrl  String? // Clerk profile picture URL
+
+  // Online status tracking
+  isOnline   Boolean  @default(false)
+  lastSeenAt DateTime @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -23,7 +28,42 @@ model User {
   sentMessages             Message[]                 @relation("MessageSender")
   conversationParticipants ConversationParticipant[]
 
+  // Contact relationships (self-relation for user-to-user contacts)
+  contactsInitiated Contact[] @relation("ContactInitiator")
+  contactsReceived  Contact[] @relation("ContactReceiver")
+
+  @@index([isOnline])
+  @@index([lastSeenAt])
   @@map("users")
+}
+
+// Contact model - manages user connections and friend requests
+model Contact {
+  id        String        @id @default(uuid())
+  status    ContactStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // User who initiated the contact request
+  initiatorId String
+  initiator   User   @relation("ContactInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+
+  // User who received the contact request
+  receiverId String
+  receiver   User   @relation("ContactReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([initiatorId, receiverId]) // Prevent duplicate contact requests
+  @@index([initiatorId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("contacts")
+}
+
+// Enum for contact status
+enum ContactStatus {
+  PENDING // Contact request sent but not yet accepted
+  ACCEPTED // Contact request accepted
+  BLOCKED // User blocked
 }
 
 // Conversation model - represents a chat (1:1 or group)
@@ -43,10 +83,11 @@ model Conversation {
 
 // ConversationParticipant - many-to-many relation between User and Conversation
 model ConversationParticipant {
-  id             String    @id @default(uuid())
+  id             String     @id @default(uuid())
   conversationId String
   userId         String
-  joinedAt       DateTime  @default(now())
+  role           MemberRole @default(MEMBER) // Role of the user in the conversation
+  joinedAt       DateTime   @default(now())
   lastReadAt     DateTime? // For read receipts feature later
 
   // Relations
@@ -54,7 +95,15 @@ model ConversationParticipant {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId]) // Prevent duplicate participants
+  @@index([conversationId])
+  @@index([userId])
   @@map("conversation_participants")
+}
+
+// Enum for participant roles in conversations
+enum MemberRole {
+  ADMIN // Can invite/remove members, manage conversation settings
+  MEMBER // Standard participant with basic permissions
 }
 
 // Message model - represents a message in a conversation
@@ -70,5 +119,8 @@ model Message {
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
   @@map("messages")
 }
