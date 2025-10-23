@@ -21,7 +21,7 @@ export default defineNuxtConfig({
         buildAssetsDir: '/_nuxt/'
     },
     devServer: {
-        port: 3000
+        port: 3001
     },
     css: [
         '@/assets/css/main.css'
@@ -44,6 +44,12 @@ export default defineNuxtConfig({
         ],
         css: {
             preprocessorOptions: {}
+        },
+        server: {
+            allowedHosts: [
+                'localhost',
+                'deputable-disavowedly-malcom.ngrok-free.dev' // Ajoute ici ton URL ngrok actuelle
+            ]
         }
     },
 })

@@ -7,7 +7,7 @@ async function bootstrap() {
 
     // Enable CORS for frontend
     app.enableCors({
-        origin: 'http://localhost:3000', // Frontend URL
+        origin: 'http://localhost:3001', // Frontend URL
         credentials: true,
     });
 
@@ -23,7 +23,7 @@ async function bootstrap() {
     // Add global prefix 'api' to all routes
     app.setGlobalPrefix('api');
 
-    await app.listen(3001);
-    console.log('Backend running on http://localhost:3001');
+    await app.listen(3000);
+    console.log('Backend running on http://localhost:3000');
 }
 bootstrap();

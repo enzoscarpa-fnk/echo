@@ -73,8 +73,6 @@ const loading = ref(false)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 
-const currentUserId = '550e8400-e29b-41d4-a716-446655440001' // UUID à récupérer sur Clerk
-const conversationId = '550e8400-e29b-41d4-a716-446655440003' // UUID de la conversation
 
 // Formate l'heure pour affichage
 const formatTime = (dateString: string) => {
@@ -94,7 +92,7 @@ const scrollToBottom = () => {
 // Charge les messages depuis l'API
 const loadMessages = async () => {
   try {
-    const response = await $fetch<Message[]>(`http://localhost:3001/messages?conversationId=${conversationId}`)
+    const response = await $fetch<Message[]>(`http://localhost:3001/api/conversations/${conversationId}/messages`)
     messages.value = response
     await nextTick()
     scrollToBottom()
@@ -109,7 +107,7 @@ const sendMessage = async () => {
 
   loading.value = true
   try {
-    const response = await $fetch<Message>('http://localhost:3001/messages', {
+    const response = await $fetch<Message>(`http://localhost:3001/api/conversations/${conversationId}/messages`, {
       method: 'POST',
       body: {
         content: newMessage.value,

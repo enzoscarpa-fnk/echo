@@ -2,16 +2,16 @@ export const useMessages = () => {
     const { apiFetch } = useApi()
 
     const getMessages = async (conversationId: string) => {
-        return apiFetch(`/messages?conversationId=${conversationId}`)
+        return apiFetch(`/conversations/${conversationId}/messages`)
     }
 
     const sendMessage = async ( data: {
-        content: string
+        content: string,
         conversationId: string
     }) => {
-        return apiFetch('/messages', {
+        return apiFetch(`/conversations/${data.conversationId}/messages`, {
             method: 'POST',
-            body: data,
+            body: {content: data.content},
         })
     }
 
