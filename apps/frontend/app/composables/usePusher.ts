@@ -1,6 +1,5 @@
-import { ref, onUnmounted } from 'vue';
+import { ref } from 'vue';
 import Pusher from 'pusher-js';
-import { useClerk } from '#imports';
 
 export function usePusher(userId: string, token: string) {
     const pusher = new Pusher('<PUSHER_KEY>', {
@@ -11,7 +10,7 @@ export function usePusher(userId: string, token: string) {
         },
     });
 
-    // Subscribing to connected user's Pusher private channel
+    // Subscribe to private channel
     const channel = pusher.subscribe(`private-user-${userId}`);
 
     // Received events list
@@ -21,11 +20,11 @@ export function usePusher(userId: string, token: string) {
         contactStatusUpdates.value.push(data);
     });
 
-    onUnmounted(() => {
+    const cleanup = () => {
         channel.unbind_all();
         pusher.unsubscribe(`private-user-${userId}`);
         pusher.disconnect();
-    });
+    };
 
-    return { pusher, channel, contactStatusUpdates };
+    return { pusher, channel, contactStatusUpdates, cleanup };
 }

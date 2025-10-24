@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { usePusher } from '~/composables/usePusher'
 import type { FormError, FormSubmitEvent } from '#ui/types'
 
-// ✅ Utilise ce qui est disponible dans useAuth
 const { isLoaded, isSignedIn, userId, sessionId, sessionClaims } = useAuth()
 const { openUserProfile } = useClerk()
 
@@ -12,13 +11,15 @@ const contactStatusUpdates = ref([])
 const loading = ref(false)
 const editMode = ref(false)
 
+let pusherCleanup: (() => void) | null = null
+
 // Form state
 const formState = reactive({
   firstName: '',
   lastName: '',
 })
 
-// ✅ Debug
+// Debug
 onMounted(() => {
   console.log('🔍 isLoaded:', isLoaded.value)
   console.log('🔍 isSignedIn:', isSignedIn.value)
@@ -27,14 +28,14 @@ onMounted(() => {
   console.log('🔍 sessionClaims:', sessionClaims.value)
 })
 
-// ✅ Get token from __clerk_session cookie directly
+// Get token from __clerk_session cookie directly
 const getClerkToken = async () => {
   try {
     // The token is stored in the __clerk_session cookie
     // Clerk automatically includes it in requests
     // We'll make the API call without manually adding the token
     // The backend ClerkStrategy will extract it from cookies
-    return 'use-cookie' // Signal to use cookie-based auth
+    return 'use-cookie'
   } catch (error) {
     console.error('Error:', error)
     return null
@@ -61,7 +62,7 @@ const fetchProfile = async () => {
 
     console.log('✅ Calling API (using cookies for auth)')
 
-    // ✅ Call API - Clerk cookie will be sent automatically
+    // Call API - Clerk cookie will be sent automatically
     const data = await $fetch('/api/users/me', {
       credentials: 'include', // Include cookies
     })
@@ -71,11 +72,6 @@ const fetchProfile = async () => {
     formState.firstName = data?.firstName || ''
     formState.lastName = data?.lastName || ''
 
-    // Get token for Pusher
-    const token = await getClerkToken()
-    const { contactStatusUpdates: updates } = usePusher(data.id, token)
-    contactStatusUpdates.value = updates
-
     console.log('✅ Profile loaded')
   } catch (error) {
     console.error('❌ Error:', error)
@@ -84,7 +80,7 @@ const fetchProfile = async () => {
   }
 }
 
-// ✅ Watch
+// Fetch profile
 watch(
     [() => isLoaded.value, () => isSignedIn.value],
     ([loaded, signedIn]) => {
@@ -97,6 +93,32 @@ watch(
     },
     { immediate: true }
 )
+
+// Setup Pusher when profile is loaded
+watch(
+    () => profile.value,
+    (newProfile) => {
+      if (newProfile?.id) {
+        console.log('Setting up Pusher for user:', newProfile.id)
+
+        const { contactStatusUpdates: updates, cleanup } = usePusher(
+            newProfile.id,
+            'use-cookie'
+        )
+
+        contactStatusUpdates.value = updates
+        pusherCleanup = cleanup
+      }
+    },
+    { once: true }
+)
+
+onUnmounted(() => {
+  console.log('Component unmounting, cleaning up Pusher')
+  if (pusherCleanup) {
+    pusherCleanup()
+  }
+})
 
 // Form validation
 const validate = (state: any): FormError[] => {
