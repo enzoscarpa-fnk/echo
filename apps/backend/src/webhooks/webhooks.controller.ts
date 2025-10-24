@@ -11,7 +11,7 @@ import {
 import { WebhooksService } from './webhooks.service';
 import { Webhook } from 'svix';
 
-@Controller('api/webhooks')
+@Controller('webhooks')
 export class WebhooksController {
     private readonly logger = new Logger(WebhooksController.name);
 

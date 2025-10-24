@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue';
 import Pusher from 'pusher-js';
+import { useClerk } from '#imports';
 
 export function usePusher(userId: string, token: string) {
     const pusher = new Pusher('<PUSHER_KEY>', {
@@ -10,16 +11,14 @@ export function usePusher(userId: string, token: string) {
         },
     });
 
-    // Souscription au channel privé Pusher de l’utilisateur connecté
+    // Subscribing to connected user's Pusher private channel
     const channel = pusher.subscribe(`private-user-${userId}`);
 
-    // Liste d’événements reçus
+    // Received events list
     const contactStatusUpdates = ref<any[]>([]);
 
     channel.bind('contact-status-changed', ( any) => {
-        // Ici : met à jour un state global/VueX/pinia OU la liste de notifications locales
         contactStatusUpdates.value.push(data);
-        // Par exemple: data = { userId, isOnline, lastSeenAt }
     });
 
     onUnmounted(() => {
