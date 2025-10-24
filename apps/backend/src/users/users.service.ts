@@ -3,6 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { User } from '@prisma/client';
 import Pusher from 'pusher';
 import { PUSHER_PROVIDER } from './pusher.provider';
+import {UpdateUserDto} from "./dto/update-user.dto";
 
 @Injectable()
 export class UsersService {
@@ -131,6 +132,35 @@ export class UsersService {
             take: 10,// Limit results
         });
     }
+
+    /**
+     * Update user profile (local fields only)
+     */
+    async updateProfile(userId: string, data:UpdateUserDto) {
+        const user = await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                firstName: data.firstName,
+                    lastName: data.lastName,
+            },
+            select: {
+                id: true,
+                    clerkId: true,
+                    email: true,
+                    username: true,
+                    firstName: true,
+                    lastName: true,
+                    imageUrl: true,
+                    createdAt: true,
+                    isOnline: true,
+                    lastSeenAt: true,
+                    updatedAt: true,
+            },
+        });
+
+        return user;
+    }
+
 
     /**
      * Set user status to online

@@ -1,6 +1,7 @@
 import {
     Controller,
     Get,
+    Patch,
     Post,
     Body,
     Param,
@@ -9,6 +10,7 @@ import {
     Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 
 @Controller('users')
@@ -25,6 +27,18 @@ export class UsersController {
         // req.user already contains the full User object from the database
         // It's populated by ClerkAuthGuard after verifying the token
         return req.user;
+    }
+
+    /**
+     * PATCH /api/users/me
+     * Update current user profile (local fields only)
+     */
+    @Patch('me')
+    async updateCurrentUser(
+        @Req() req: any,
+        @Body() updateUserDto: UpdateUserDto,
+    ) {
+        return this.usersService.updateProfile(req.user.id, updateUserDto);
     }
 
     /**

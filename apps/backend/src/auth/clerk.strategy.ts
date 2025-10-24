@@ -18,15 +18,33 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
     }
 
     async validate(req: Request): Promise<any> {
-        const authHeader = req.headers.authorization;
+        let token: string | undefined;
 
-        const token = authHeader?.split(' ')[1];
+        // Try to get token from Authorization header first
+        const authHeader = req.headers.authorization;
+        if (authHeader) {
+            token = authHeader.split(' ')[1];
+        }
+
+        // If not in header, try to get from cookies
+        if (!token && req.cookies) {
+            // Clerk stores the session token in __session cookie
+            token = req.cookies['__session'];
+        }
+
+        // Also check for __clerk_db_jwt cookie (alternative Clerk cookie)
+        if (!token && req.cookies) {
+            token = req.cookies['__clerk_db_jwt'];
+        }
 
         if (!token) {
+            console.error('No token found in headers or cookies');
             throw new UnauthorizedException('No token provided');
         }
 
         try {
+            console.log('Verifying Clerk token...');
+
             // Verify JWT token
             const payload = await verifyToken(token, {
                 secretKey: this.configService.get('CLERK_SECRET_KEY'),
@@ -34,8 +52,12 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
                 authorizedParties: undefined,
             });
 
+            console.log('Token verified, userId:', payload.sub);
+
             // Fetch full user details from Clerk
             const clerkUser = await this.clerkClient.users.getUser(payload.sub);
+
+            console.log('Clerk user fetched:', clerkUser.id);
 
             // Upsert user in local database with all fields
             const user = await this.prisma.user.upsert({
@@ -62,6 +84,8 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
                 },
             });
 
+            console.log('User upserted in DB:', user.id);
+
             // Return user object that will be attached to req.user
             return {
                 id: user.id,
@@ -76,6 +100,7 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
             };
         } catch (error) {
             console.error('Clerk authentication failed:', error.message);
+            console.error('Error details:', error);
             throw new UnauthorizedException('Invalid or expired token');
         }
     }
