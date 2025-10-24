@@ -2,7 +2,7 @@ export const useApi = () => {
     const config = useRuntimeConfig()
     const { getToken } = useAuth()
 
-    const apiFetch = async <T>(url: string, options: any = {}) => {
+    return async <T = any>(url: string, options: any = {}) => {
         const token = await getToken()
 
         return $fetch<T>(`${config.public.apiBase}${url}`, {
@@ -12,9 +12,5 @@ export const useApi = () => {
                 Authorization: token ? `Bearer ${token}` : '',
             },
         })
-    }
-
-    return {
-        apiFetch,
     }
 }

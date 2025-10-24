@@ -35,7 +35,7 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             clerkPublishableKey: process.env.NUXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001',
+            apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3000/api',
         },
     },
     vite: {

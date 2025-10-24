@@ -1,28 +1,54 @@
 export const useConversations = () => {
-    const { apiFetch } = useApi()
+    const api = useApi()
 
+    /**
+     * Create a 1:1 conversation with another user
+     */
+    const createConversation = async (participantId: string) => {
+        try {
+            const response = await api('/conversations', {
+                method: 'POST',
+                body: {
+                    participantIds: [participantId],
+                    isGroup: false,
+                },
+            })
+            return response
+        } catch (error: any) {
+            console.error('Error creating conversation:', error)
+            throw error
+        }
+    }
+
+    /**
+     * Get all conversations for current user
+     */
     const getConversations = async () => {
-        return apiFetch('/conversations')
+        try {
+            const response = await api('/conversations')
+            return response
+        } catch (error: any) {
+            console.error('Error fetching conversations:', error)
+            throw error
+        }
     }
 
-    const getConversation = async (id: string) => {
-        return apiFetch(`/conversations/${id}`)
-    }
-
-    const createConversation = async (data: {
-        name?: string
-        participantIds?: string[]
-        isGroup?: boolean
-    }) => {
-        return apiFetch('/conversations', {
-            method: 'POST',
-            body: data,
-        })
+    /**
+     * Get a single conversation by ID
+     */
+    const getConversation = async (conversationId: string) => {
+        try {
+            const response = await api(`/conversations/${conversationId}`)
+            return response
+        } catch (error: any) {
+            console.error('Error fetching conversation:', error)
+            throw error
+        }
     }
 
     return {
+        createConversation,
         getConversations,
         getConversation,
-        createConversation,
     }
 }
