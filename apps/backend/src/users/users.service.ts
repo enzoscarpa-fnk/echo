@@ -161,6 +161,33 @@ export class UsersService {
         return user;
     }
 
+    /**
+     * Get all contacts (users except current user)
+     */
+    async getContacts(currentUserId: string) {
+        return this.prisma.user.findMany({
+            where: {
+                id: {
+                    not: currentUserId, // Exclude current user
+                },
+            },
+            select: {
+                id: true,
+                clerkId: true,
+                email: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                imageUrl: true,
+                isOnline: true,
+                lastSeenAt: true,
+            },
+            orderBy: [
+                { isOnline: 'desc' }, // Online users first
+                { username: 'asc' },  // Then alphabetically
+            ],
+        });
+    }
 
     /**
      * Set user status to online
