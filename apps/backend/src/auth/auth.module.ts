@@ -1,21 +1,18 @@
-// src/auth/auth.module.ts
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule } from '@nestjs/config';
 import { ClerkStrategy } from './clerk.strategy';
-import { ClerkClientProvider } from '../providers/clerk-client.provider';
+import { ClerkAuthGuard } from './clerk-auth.guard';
+import { ClerkClientProvider } from './clerk-client.provider';
+import { PrismaModule } from '../database/prisma.module';
 
 @Module({
     imports: [
-        PassportModule,
+        PassportModule.register({ defaultStrategy: 'clerk' }),
         ConfigModule,
+        PrismaModule,
     ],
-    providers: [
-        ClerkStrategy,
-        ClerkClientProvider,
-    ],
-    exports: [
-        PassportModule,
-    ],
+    providers: [ClerkStrategy, ClerkAuthGuard, ClerkClientProvider],
+    exports: [ClerkAuthGuard, PassportModule],
 })
 export class AuthModule {}

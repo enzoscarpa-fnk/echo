@@ -1,12 +1,16 @@
 import {
     Controller,
     Get,
+    Patch,
+    Post,
+    Body,
     Param,
     Query,
     UseGuards,
     Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 
 @Controller('users')
@@ -26,6 +30,18 @@ export class UsersController {
     }
 
     /**
+     * PATCH /api/users/me
+     * Update current user profile (local fields only)
+     */
+    @Patch('me')
+    async updateCurrentUser(
+        @Req() req: any,
+        @Body() updateUserDto: UpdateUserDto,
+    ) {
+        return this.usersService.updateProfile(req.user.id, updateUserDto);
+    }
+
+    /**
      * GET /api/users/search?query=john
      * Search users by name or email
      */
@@ -33,6 +49,68 @@ export class UsersController {
     async search(@Query('query') query: string, @Req() req: any) {
         // req.user.id is the internal database ID (UUID)
         return this.usersService.search(query, req.user.id);
+    }
+
+    /**
+     * GET /api/users/contacts
+     * Get all contacts (other users except current user)
+     */
+    @Get('contacts')
+    async getContacts(@Req() req: any) {
+        return this.usersService.getContacts(req.user.id);
+    }
+
+    /**
+     * POST /api/users/status/online
+     * Mark user as online (appelé au login/refresh)
+     */
+    @Post('status/online')
+    async setOnline(@Req() req: any) {
+        return this.usersService.setUserOnline(req.user.id);
+    }
+
+    /**
+     * POST /api/users/status/offline
+     * Mark user as offline (appelé au logout/beforeunload)
+     */
+    @Post('status/offline')
+    async setOffline(@Req() req: any) {
+        return this.usersService.setUserOffline(req.user.id);
+    }
+
+    /**
+     * POST /api/users/status/heartbeat
+     * Update last seen (appelé toutes les 30 secondes)
+     */
+    @Post('status/heartbeat')
+    async heartbeat(@Req() req: any) {
+        return this.usersService.updateLastSeen(req.user.id);
+    }
+
+    /**
+     * GET /api/users/status/contacts
+     * Get status of all user's contacts
+     */
+    @Get('status/contacts')
+    async getContactsStatus(@Req() req: any) {
+        return this.usersService.getContactsStatus(req.user.id);
+    }
+
+    /**
+     * POST /api/users/pusher/auth
+     * Authorize Pusher channel subscription
+     */
+    @Post('pusher/auth')
+    async authorizePusher(
+        @Body('socket_id') socketId: string,
+        @Body('channel_name') channelName: string,
+        @Req() req: any,
+    ) {
+        return this.usersService.authorizeChannel(
+            socketId,
+            channelName,
+            req.user.id,
+        );
     }
 
     /**
@@ -53,4 +131,5 @@ export class UsersController {
     async findOne(@Param('id') id: string) {
         return this.usersService.findOne(id);
     }
+
 }

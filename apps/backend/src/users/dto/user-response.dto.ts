@@ -8,6 +8,8 @@ export class UserResponseDto {
     lastName?: string;
     imageUrl?: string;
     createdAt: Date;
+    isOnline?: boolean;
+    lastSeenAt?: Date;
 
     // Helper method to get full name
     get fullName(): string {

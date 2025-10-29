@@ -9,6 +9,7 @@ import { MessagesModule } from './messages/messages.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { UsersModule } from './users/users.module';
 import { ConversationsModule } from './conversations/conversations.module';
+import { ContactsModule } from './contacts/contacts.module';
 
 @Module({
     imports: [
@@ -21,6 +22,7 @@ import { ConversationsModule } from './conversations/conversations.module';
         AuthModule,
         UsersModule,
         ConversationsModule,
+        ContactsModule,
         MessagesModule,
         WebhooksModule,
     ],

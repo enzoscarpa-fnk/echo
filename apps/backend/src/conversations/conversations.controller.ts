@@ -2,6 +2,7 @@ import {
     Controller,
     Get,
     Post,
+    Patch,
     Body,
     Param,
     Delete,
@@ -10,12 +11,28 @@ import {
 } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { UpdateParticipantRoleDto } from "./dto/update-participant-role.dto";
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 
 @Controller('conversations')
 @UseGuards(ClerkAuthGuard)
 export class ConversationsController {
     constructor(private readonly conversationsService: ConversationsService) {}
+
+    /**
+     * POST /api/conversations/find-or-create/:contactId
+     * Find or create a 1:1 conversation with a contact
+     */
+    @Post('find-or-create/:contactId')
+    async findOrCreateWithContact(
+        @Param('contactId') contactId: string,
+        @Req() req: any,
+    ) {
+        return this.conversationsService.findOrCreateWithContact(
+            req.user.id,
+            contactId,
+        );
+    }
 
     /**
      * POST /api/conversations
@@ -89,4 +106,24 @@ export class ConversationsController {
     async remove(@Param('id') id: string, @Req() req: any) {
         return this.conversationsService.remove(id, req.user.id);
     }
+
+    /**
+     * PATCH /api/conversations/:id/participants/:userId/role
+     * Update a participant's role
+     */
+    @Patch(':id/participants/:userId/role')
+    async updateParticipantRole(
+        @Param('id') conversationId: string,
+        @Param('userId') userId: string,
+        @Body() updateRoleDto: UpdateParticipantRoleDto,
+        @Req() req: any,
+    ) {
+        return this.conversationsService.updateParticipantRole(
+            conversationId,
+            userId,
+            updateRoleDto.role,
+            req.user.id,
+        );
+    }
+
 }

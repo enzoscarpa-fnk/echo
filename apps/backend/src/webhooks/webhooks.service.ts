@@ -42,18 +42,26 @@ export class WebhooksService {
 
     /**
      * Handle user.updated event from Clerk
-     * Updates user data in our database
+     * Updates user data in our database (or creates if not exists)
      */
     async handleUserUpdated(data: any) {
         try {
-            const user = await this.prisma.user.update({
+            const user = await this.prisma.user.upsert({
                 where: { clerkId: data.id },
-                data: {
+                update: {
                     email: data.email_addresses?.[0]?.email_address || undefined,
                     username: data.username || data.first_name || undefined,
                     firstName: data.first_name || undefined,
                     lastName: data.last_name || undefined,
                     imageUrl: data.image_url || undefined,
+                },
+                create: {
+                    clerkId: data.id,
+                    email: data.email_addresses?.[0]?.email_address || '',
+                    username: data.username || data.first_name || null,
+                    firstName: data.first_name || null,
+                    lastName: data.last_name || null,
+                    imageUrl: data.image_url || null,
                 },
             });
 
@@ -64,6 +72,7 @@ export class WebhooksService {
             throw error;
         }
     }
+
 
     /**
      * Handle user.deleted event from Clerk

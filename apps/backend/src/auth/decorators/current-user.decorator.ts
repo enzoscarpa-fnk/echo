@@ -1,8 +1,10 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 export const CurrentUser = createParamDecorator(
-    ( unknown, ctx: ExecutionContext) => {
+    (data: string, ctx: ExecutionContext) => {
         const request = ctx.switchToHttp().getRequest();
-        return request.user; // User attached by ClerkAuthGuard
+        const user = request.user;
+
+        return data ? user?.[data] : user;
     },
 );
