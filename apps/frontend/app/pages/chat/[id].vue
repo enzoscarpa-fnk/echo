@@ -6,73 +6,40 @@ definePageMeta({
 const route = useRoute()
 const conversationId = route.params.id as string
 
-console.log('🔍 Loading conversation:', conversationId)
-
 const { getConversation } = useConversations()
 const { getMessages, sendMessage: sendMsg } = useMessages()
-const { user } = useAuth()
+const { userId } = useAuth()
 
 const newMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref<HTMLElement>()
 
-// ✅ Ajoute des logs
-const {  conversation, error: conversationError } = await useAsyncData(
+const { data: conversation } = await useAsyncData(
     `conversation-${conversationId}`,
-    async () => {
-      try {
-        console.log('📡 Fetching conversation...')
-        const data = await getConversation(conversationId)
-        console.log('✅ Conversation loaded:', data)
-        return data
-      } catch (err) {
-        console.error('❌ Error fetching conversation:', err)
-        throw err
-      }
-    }
+    () => getConversation(conversationId)
 )
 
-const {  messages, refresh: refreshMessages, error: messagesError } = await useAsyncData(
+const { data: messages, refresh: refreshMessages } = await useAsyncData(
     `messages-${conversationId}`,
-    async () => {
-      try {
-        console.log('📡 Fetching messages...')
-        const data = await getMessages(conversationId)
-        console.log('✅ Messages loaded:', data)
-        return data
-      } catch (err) {
-        console.error('❌ Error fetching messages:', err)
-        throw err
-      }
-    }
+    () => getMessages(conversationId)
 )
-
-// Log errors
-if (conversationError.value) {
-  console.error('🔴 Conversation error:', conversationError.value)
-}
-if (messagesError.value) {
-  console.error('🔴 Messages error:', messagesError.value)
-}
-
-// Log final state
-console.log('🎯 Final state:')
-console.log('  conversation:', conversation?.value)
-console.log('  messages:', messages?.value)
 
 const getConversationName = () => {
   if (!conversation.value) return 'Loading...'
+  if (!userId.value) return 'Loading...'
+
   if (conversation.value?.name) return conversation.value.name
   const otherParticipant = conversation.value?.participants?.find(
-      (p: any) => p.userId !== user.value?.id
+      (p: any) => p.userId !== userId.value
   )
-  return otherParticipant?.user?.username || 'Unknown'
+  return otherParticipant?.user?.username || otherParticipant?.user?.firstName || 'Unknown'
 }
 
 const getConversationAvatar = () => {
-  if (!conversation.value) return null
+  if (!conversation.value || !userId.value) return null
+
   const otherParticipant = conversation.value?.participants?.find(
-      (p: any) => p.userId !== user.value?.id
+      (p: any) => p.userId !== userId.value
   )
   return otherParticipant?.user?.imageUrl || null
 }
@@ -109,11 +76,12 @@ const sendMessage = async () => {
   }
 }
 
-// Auto-scroll on mount
 onMounted(() => {
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-  }
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
 })
 </script>
 
@@ -124,7 +92,7 @@ onMounted(() => {
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
     </div>
 
-    <!-- Chat interface (only when loaded) -->
+    <!-- Chat interface -->
     <template v-else>
       <!-- Header -->
       <div class="bg-white border-b px-4 py-3 flex items-center gap-3">
@@ -164,13 +132,13 @@ onMounted(() => {
               :key="message.id"
               :class="[
               'flex',
-              message.senderId === user?.id ? 'justify-end' : 'justify-start'
+              message.senderId === userId ? 'justify-end' : 'justify-start'
             ]"
           >
             <div
                 :class="[
                 'max-w-[75%] rounded-2xl px-4 py-2',
-                message.senderId === user?.id
+                message.senderId === userId
                   ? 'bg-blue-600 text-white rounded-br-sm'
                   : 'bg-white text-gray-900 rounded-bl-sm'
               ]"
@@ -179,7 +147,7 @@ onMounted(() => {
               <p
                   :class="[
                   'text-xs mt-1',
-                  message.senderId === user?.id ? 'text-blue-100' : 'text-gray-500'
+                  message.senderId === userId ? 'text-blue-100' : 'text-gray-500'
                 ]"
               >
                 {{ formatTime(message.createdAt) }}
