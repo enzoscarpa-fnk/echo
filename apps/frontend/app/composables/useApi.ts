@@ -1,15 +1,17 @@
 export const useApi = () => {
     const config = useRuntimeConfig()
-    const { getToken } = useAuth()
 
     const apiFetch = async <T>(url: string, options: any = {}) => {
-        const token = await getToken()
+        const fullUrl = `${config.public.apiBase}${url}`
+        console.log('🔧 [useApi] apiBase:', config.public.apiBase)
+        console.log('🔧 [useApi] url param:', url)
+        console.log('🔧 [useApi] Full URL:', fullUrl)
 
-        return $fetch<T>(`${config.public.apiBase}${url}`, {
+        return $fetch<T>(fullUrl, {
             ...options,
+            credentials: 'include',
             headers: {
                 ...options.headers,
-                Authorization: token ? `Bearer ${token}` : '',
             },
         })
     }

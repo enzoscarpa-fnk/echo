@@ -20,6 +20,21 @@ export class ConversationsController {
     constructor(private readonly conversationsService: ConversationsService) {}
 
     /**
+     * POST /api/conversations/find-or-create/:contactId
+     * Find or create a 1:1 conversation with a contact
+     */
+    @Post('find-or-create/:contactId')
+    async findOrCreateWithContact(
+        @Param('contactId') contactId: string,
+        @Req() req: any,
+    ) {
+        return this.conversationsService.findOrCreateWithContact(
+            req.user.id,
+            contactId,
+        );
+    }
+
+    /**
      * POST /api/conversations
      * Create a new conversation
      */

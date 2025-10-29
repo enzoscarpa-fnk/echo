@@ -162,30 +162,57 @@ export class UsersService {
     }
 
     /**
-     * Get all contacts (users except current user)
+     * Get all contacts (users with ACCEPTED status)
      */
     async getContacts(currentUserId: string) {
-        return this.prisma.user.findMany({
+        const contacts = await this.prisma.contact.findMany({
             where: {
-                id: {
-                    not: currentUserId, // Exclude current user
+                status: 'ACCEPTED',
+                OR: [
+                    { initiatorId: currentUserId },
+                    { receiverId: currentUserId },
+                ],
+            },
+            include: {
+                initiator: {
+                    select: {
+                        id: true,
+                        clerkId: true,
+                        email: true,
+                        username: true,
+                        firstName: true,
+                        lastName: true,
+                        imageUrl: true,
+                        isOnline: true,
+                        lastSeenAt: true,
+                    },
+                },
+                receiver: {
+                    select: {
+                        id: true,
+                        clerkId: true,
+                        email: true,
+                        username: true,
+                        firstName: true,
+                        lastName: true,
+                        imageUrl: true,
+                        isOnline: true,
+                        lastSeenAt: true,
+                    },
                 },
             },
-            select: {
-                id: true,
-                clerkId: true,
-                email: true,
-                username: true,
-                firstName: true,
-                lastName: true,
-                imageUrl: true,
-                isOnline: true,
-                lastSeenAt: true,
-            },
-            orderBy: [
-                { isOnline: 'desc' }, // Online users first
-                { username: 'asc' },  // Then alphabetically
-            ],
+        });
+
+        // Return only the "other" user
+        return contacts.map((contact) => {
+            const isInitiator = contact.initiatorId === currentUserId;
+            return isInitiator ? contact.receiver : contact.initiator;
+        }).sort((a, b) => {
+            // Online first
+            if (a.isOnline && !b.isOnline) return -1;
+            if (!a.isOnline && b.isOnline) return 1;
+            // Then alphabetically
+            return (a.username || a.email).localeCompare(b.username || b.email);
         });
     }
 

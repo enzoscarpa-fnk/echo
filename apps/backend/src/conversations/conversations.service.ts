@@ -133,6 +133,69 @@ export class ConversationsService {
     }
 
     /**
+     * Find or create a 1:1 conversation with a contact
+     * Simplified method for direct contact-to-chat navigation
+     */
+    async findOrCreateWithContact(currentUserId: string, contactId: string) {
+        // Validate that users are accepted contacts
+        const areContacts = await this.prisma.contact.findFirst({
+            where: {
+                status: 'ACCEPTED',
+                OR: [
+                    { initiatorId: currentUserId, receiverId: contactId },
+                    { initiatorId: contactId, receiverId: currentUserId },
+                ],
+            },
+        });
+
+        if (!areContacts) {
+            throw new ForbiddenException('Users are not accepted contacts');
+        }
+
+        // Try to find existing 1:1 conversation
+        const participantIds = [currentUserId, contactId];
+        const existingConversation = await this.findExistingOneToOne(participantIds);
+
+        if (existingConversation) {
+            return existingConversation;
+        }
+
+        // Create new 1:1 conversation
+        const conversation = await this.prisma.conversation.create({
+        data: {
+            isGroup: false,
+                participants: {
+                create: [
+                    { userId: currentUserId, role: MemberRole.MEMBER },
+                    { userId: contactId, role: MemberRole.MEMBER },
+                ],
+            },
+        },
+        include: {
+            participants: {
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            clerkId: true,
+                            email: true,
+                            username: true,
+                            firstName: true,
+                            lastName: true,
+                            imageUrl: true,
+                            isOnline: true,
+                            lastSeenAt: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+        return conversation;
+    }
+
+    /**
      * Get all conversations for the current user
      */
     async findAll(currentUserId: string) {
