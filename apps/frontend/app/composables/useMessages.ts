@@ -23,9 +23,24 @@ export const useMessages = () => {
         })
     }
 
+    const updateMessage = async (messageId: string, content: string) => {
+        return await apiFetch(`/messages/${messageId}`, {
+            method: 'PATCH',
+            body: { content }
+        })
+    }
+
+    const deleteMessage = async (messageId: string) => {
+        return await apiFetch(`/messages/${messageId}`, {
+            method: 'DELETE'
+        })
+    }
+
     return {
         getMessages,
         sendMessage,
+        updateMessage,
+        deleteMessage,
         markAsRead,
     }
 }

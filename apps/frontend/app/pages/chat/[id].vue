@@ -9,12 +9,18 @@ const route = useRoute()
 const conversationId = route.params.id as string
 
 const { getConversation } = useConversations()
-const { getMessages, sendMessage: sendMsg } = useMessages()
+const { getMessages, sendMessage: sendMsg, updateMessage, deleteMessage, markAsRead } = useMessages()
 const { apiFetch } = useApi()
+
+const headerMenuOpen = ref(false)
+const messageMenuOpen = ref<string | null>(null)
 
 const newMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref<HTMLElement>()
+
+const editingMessageId = ref<string | null>(null)
+const editingContent = ref('')
 
 const { data: currentUser } = await useAsyncData(
     'current-user',
@@ -34,6 +40,67 @@ const { data: messages, refresh: refreshMessages } = await useAsyncData(
     `messages-${conversationId}`,
     () => getMessages(conversationId)
 )
+
+// Mark as read when conversation is loaded
+onMounted(async () => {
+  try {
+    await markAsRead(conversationId)
+  } catch (error) {
+    console.error('Failed to mark as read:', error)
+  }
+})
+
+// Message edition
+const startEditMessage = (message: any) => {
+  editingMessageId.value = message.id
+  editingContent.value = message.content
+}
+
+const cancelEditMessage = () => {
+  editingMessageId.value = null
+  editingContent.value = ''
+}
+
+const saveEditMessage = async (messageId: string) => {
+  if (!editingContent.value.trim()) return
+
+  try {
+    await updateMessage(messageId, editingContent.value)
+    editingMessageId.value = null
+    editingContent.value = ''
+  } catch (error) {
+    console.error('Failed to update message:', error)
+  }
+}
+
+const confirmDeleteMessage = async (messageId: string) => {
+  if (confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
+    try {
+      await deleteMessage(messageId)
+    } catch (error) {
+      console.error('Failed to delete message:', error)
+    }
+  }
+}
+
+// Menu dropdown du header
+const conversationMenuItems = [
+  [{
+    label: 'Ajouter des contacts',
+    icon: 'i-heroicons-user-plus',
+    click: () => console.log('Add contacts') // TODO: Implémenter
+  }],
+  [{
+    label: 'Renommer',
+    icon: 'i-heroicons-pencil',
+    click: () => console.log('Rename') // TODO: Implémenter
+  }],
+  [{
+    label: 'Supprimer',
+    icon: 'i-heroicons-trash',
+    click: () => console.log('Delete') // TODO: Implémenter
+  }]
+]
 
 // Check if messages are more than 2 hours apart
 const hasLongTimeDifference = (index: number) => {
@@ -139,6 +206,7 @@ onMounted(() => {
 
   const channel = pusher.subscribe(`conversation-${conversationId}`)
 
+  // New message
   channel.bind('new-message', (message: any) => {
     if (messages.value && !messages.value.find((m: any) => m.id === message.id)) {
       messages.value = [...messages.value, message]
@@ -148,6 +216,27 @@ onMounted(() => {
           messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
         }
       })
+    }
+  })
+
+  // Updated message
+  channel.bind('message-updated', (updatedMessage: any) => {
+    if (messages.value) {
+      const index = messages.value.findIndex((m: any) => m.id === updatedMessage.id)
+      if (index !== -1) {
+        messages.value = [
+          ...messages.value.slice(0, index),
+          updatedMessage,
+          ...messages.value.slice(index + 1)
+        ]
+      }
+    }
+  })
+
+  // Deleted message
+  channel.bind('message-deleted', (data: any) => {
+    if (messages.value) {
+      messages.value = messages.value.filter((m: any) => m.id !== data.messageId)
     }
   })
 
@@ -250,11 +339,45 @@ const sendMessage = async () => {
           </h2>
           <p class="text-xs text-gray-500">Online</p>
         </div>
-        <UButton
-            icon="i-heroicons-ellipsis-vertical"
-            variant="ghost"
-            size="sm"
-        />
+
+        <!-- Menu -->
+        <div class="relative">
+          <UButton
+              icon="i-heroicons-ellipsis-vertical"
+              variant="ghost"
+              size="sm"
+              @click="headerMenuOpen = !headerMenuOpen"
+          />
+
+          <!-- Dropdown -->
+          <div
+              v-if="headerMenuOpen"
+              class="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+              @click="headerMenuOpen = false"
+          >
+            <button
+                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                @click="console.log('Add contacts')"
+            >
+              <UIcon name="i-heroicons-user-plus" class="w-4 h-4" />
+              Ajouter des contacts
+            </button>
+            <button
+                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                @click="console.log('Rename')"
+            >
+              <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
+              Renommer
+            </button>
+            <button
+                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                @click="console.log('Delete')"
+            >
+              <UIcon name="i-heroicons-trash" class="w-4 h-4" />
+              Supprimer
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Messages -->
@@ -265,6 +388,7 @@ const sendMessage = async () => {
 
         <div v-else class="max-w-4xl mx-auto">
           <template v-for="(message, index) in messages" :key="message.id">
+            <!-- Date separator -->
             <div
                 v-if="shouldShowDateSeparator(index)"
                 class="flex justify-center my-6"
@@ -278,11 +402,11 @@ const sendMessage = async () => {
             <div :class="getMessageSpacing(index)">
               <div
                   :class="[
-                    'flex',
+                    'flex group',
                     message.senderId === userId ? 'justify-end' : 'justify-start'
                   ]"
               >
-                <!-- Avatar (only for messages received) -->
+                <!-- Avatar -->
                 <div
                     v-if="message.senderId !== userId"
                     class="w-8 flex items-end mr-2"
@@ -295,12 +419,12 @@ const sendMessage = async () => {
                   />
                 </div>
 
-                <!-- Message content -->
+                <!-- Content -->
                 <div
                     class="flex flex-col max-w-[75%]"
                     :class="message.senderId === userId ? 'items-end' : 'items-start'"
                 >
-                  <!-- Sender name (only on top of the first of a group of message) -->
+                  <!-- Sender name -->
                   <p
                       v-if="message.senderId !== userId && !isSameSenderAsPrevious(index)"
                       class="text-xs font-semibold text-gray-700 mb-1 px-2"
@@ -308,22 +432,68 @@ const sendMessage = async () => {
                     {{ message.sender?.username || message.sender?.firstName }}
                   </p>
 
-                  <!-- Message bubble -->
-                  <div
-                      :class="[
-                        'px-4 py-2 shadow-sm',
-                        getBorderRadiusClass(index, message.senderId === userId),
-                        message.senderId === userId
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-900'
-                      ]"
-                  >
-                    <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
+                  <!-- Message (edit mode) -->
+                  <div v-if="editingMessageId === message.id" class="flex flex-col gap-2 w-full">
+                    <UTextarea v-model="editingContent" :rows="2" autofocus class="w-full" />
+                    <div class="flex gap-2">
+                      <UButton size="xs" @click="saveEditMessage(message.id)">Sauvegarder</UButton>
+                      <UButton size="xs" color="gray" variant="ghost" @click="cancelEditMessage">Annuler</UButton>
+                    </div>
                   </div>
 
-                  <!-- Timestamp (only under the last of a group of message) -->
+                  <!-- Message (normal mode) -->
+                  <div v-else class="relative flex items-center gap-2">
+                    <!-- Menu -->
+                    <div v-if="message.senderId === userId" class="relative">
+                      <UButton
+                          icon="i-heroicons-ellipsis-vertical"
+                          size="2xs"
+                          color="gray"
+                          variant="ghost"
+                          class="opacity-0 group-hover:opacity-100 transition-opacity"
+                          @click="messageMenuOpen = messageMenuOpen === message.id ? null : message.id"
+                      />
+
+                      <!-- Dropdown -->
+                      <div
+                          v-if="messageMenuOpen === message.id"
+                          class="absolute left-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                          @click="messageMenuOpen = null"
+                      >
+                        <button
+                            class="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2 text-gray-500"
+                            @click="startEditMessage(message)"
+                        >
+                          <UIcon name="i-heroicons-pencil" class="w-3 h-3" />
+                          Modifier
+                        </button>
+                        <button
+                            class="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                            @click="confirmDeleteMessage(message.id)"
+                        >
+                          <UIcon name="i-heroicons-trash" class="w-3 h-3" />
+                          Supprimer
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Bubble -->
+                    <div
+                        :class="[
+                          'px-4 py-2 shadow-sm',
+                          getBorderRadiusClass(index, message.senderId === userId),
+                          message.senderId === userId
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-900'
+                        ]"
+                    >
+                      <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Timestamp -->
                   <p
-                      v-if="!isSameSenderAsNext(index)"
+                      v-if="!isSameSenderAsNext(index) && editingMessageId !== message.id"
                       class="text-xs text-gray-500 mt-1 px-2"
                   >
                     {{ formatTime(message.createdAt) }}

@@ -203,6 +203,13 @@ export class MessagesService {
             },
         });
 
+        // Trigger Pusher event
+        await this.pusher.trigger(
+            `conversation-${message.conversationId}`,
+            'message-updated',
+            updatedMessage,
+        );
+
         return updatedMessage;
     }
 
@@ -227,6 +234,13 @@ export class MessagesService {
         await this.prisma.message.delete({
             where: { id: messageId },
         });
+
+        // Trigger Pusher event
+        await this.pusher.trigger(
+            `conversation-${message.conversationId}`,
+            'message-deleted',
+            { messageId },
+        );
 
         return { message: 'Message deleted successfully' };
     }
