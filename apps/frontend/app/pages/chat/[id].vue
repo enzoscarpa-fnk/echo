@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Pusher from 'pusher-js'
+
 definePageMeta({
   middleware: 'auth'
 })
@@ -14,15 +16,62 @@ const newMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref<HTMLElement>()
 
+// Charge la conversation
 const { data: conversation } = await useAsyncData(
     `conversation-${conversationId}`,
     () => getConversation(conversationId)
 )
 
+// Charge les messages
 const { data: messages, refresh: refreshMessages } = await useAsyncData(
     `messages-${conversationId}`,
     () => getMessages(conversationId)
 )
+
+// Écoute Pusher pour les nouveaux messages
+onMounted(() => {
+  const config = useRuntimeConfig()
+  const pusher = new Pusher(config.public.pusherKey, {
+    cluster: config.public.pusherCluster || 'eu',
+  })
+
+  const channel = pusher.subscribe(`conversation-${conversationId}`)
+
+  console.log('📡 Subscribed to:', `conversation-${conversationId}`)
+
+  channel.bind('new-message', (message: any) => {
+    console.log('💬 New message received:', message)
+
+    // Vérifie que le message n'existe pas déjà
+    if (messages.value && !messages.value.find((m: any) => m.id === message.id)) {
+      console.log('✅ Adding message to list')
+      messages.value = [...messages.value, message] // ✅ Crée un nouveau tableau (réactivité)
+
+      // Auto-scroll
+      nextTick(() => {
+        if (messagesContainer.value) {
+          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+        }
+      })
+    } else {
+      console.log('⚠️ Message already exists or messages is null')
+    }
+  })
+
+  // Cleanup
+  onUnmounted(() => {
+    channel.unbind_all()
+    pusher.unsubscribe(`conversation-${conversationId}`)
+    pusher.disconnect()
+  })
+
+  // Auto-scroll
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
+})
 
 const getConversationName = () => {
   if (!conversation.value) return 'Loading...'
@@ -45,7 +94,7 @@ const getConversationAvatar = () => {
 }
 
 const formatTime = (date: string) => {
-  return new Date(date).toLocaleTimeString('en-US', {
+  return new Date(date).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -75,26 +124,15 @@ const sendMessage = async () => {
     loading.value = false
   }
 }
-
-onMounted(() => {
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-    }
-  })
-})
 </script>
 
 <template>
   <div class="h-screen flex flex-col bg-gray-50">
-    <!-- Loading state -->
     <div v-if="!conversation" class="flex-1 flex items-center justify-center">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
     </div>
 
-    <!-- Chat interface -->
     <template v-else>
-      <!-- Header -->
       <div class="bg-white border-b px-4 py-3 flex items-center gap-3">
         <UButton
             icon="i-heroicons-arrow-left"
@@ -120,7 +158,6 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Messages -->
       <div ref="messagesContainer" class="flex-1 overflow-y-auto px-4 py-4">
         <div v-if="!messages || messages.length === 0" class="text-center text-gray-500 py-12">
           No messages yet. Start the conversation!
@@ -157,7 +194,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Input -->
       <div class="bg-white border-t px-4 py-3">
         <form @submit.prevent="sendMessage" class="flex items-center gap-2">
           <UButton

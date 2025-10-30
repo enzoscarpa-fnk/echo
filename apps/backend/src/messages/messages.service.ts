@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
+import { PusherService } from "../pusher/pusher.service";
 
 @Injectable()
 export class MessagesService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private pusher: PusherService,
+    ) {}
 
     /**
      * Send a message in a conversation
@@ -36,7 +40,7 @@ export class MessagesService {
         const message = await this.prisma.message.create({
             data: {
                 content: createMessageDto.content,
-                    conversationId,
+                conversationId,
                 senderId: currentUserId,
             },
             include: {
@@ -59,6 +63,20 @@ export class MessagesService {
             where: { id: conversationId },
             data: { updatedAt: new Date() },
         });
+
+        // ✅ TRIGGER PUSHER
+        console.log('🚀 Triggering Pusher event:', {
+            channel: `conversation-${conversationId}`,
+            event: 'new-message',
+            messageId: message.id,
+        });
+
+        // Pusher event
+        await this.pusher.trigger(
+            `conversation-${conversationId}`,
+            'new-message',
+            message,
+        );
 
         return message;
     }

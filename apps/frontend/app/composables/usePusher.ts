@@ -1,30 +1,73 @@
-import { ref } from 'vue';
-import Pusher from 'pusher-js';
+import { ref } from 'vue'
+import Pusher from 'pusher-js'
 
-export function usePusher(userId: string, token: string) {
-    const pusher = new Pusher('<PUSHER_KEY>', {
-        cluster: '<PUSHER_CLUSTER>',
-        authEndpoint: '/api/users/pusher/auth',
-        auth: {
+/**
+ * Composable pour gérer les connexions Pusher
+ * @param channelId - ID du channel (userId ou conversationId)
+ * @param channelType - Type de channel: 'user' (privé) ou 'conversation' (public)
+ * @param token - Token d'auth (optionnel, requis pour les canaux privés)
+ */
+export function usePusher(
+    channelId: string,
+    channelType: 'user' | 'conversation' = 'user',
+    token?: string
+) {
+    const config = useRuntimeConfig()
+
+    // Configuration Pusher avec auth conditionnelle
+    const pusherConfig: any = {
+        cluster: config.public.pusherCluster || 'eu',
+    }
+
+    // Si canal privé (user), ajoute l'auth
+    if (channelType === 'user' && token) {
+        pusherConfig.authEndpoint = `${config.public.apiBase}/users/pusher/auth`
+        pusherConfig.auth = {
             headers: { Authorization: `Bearer ${token}` },
-        },
-    });
+        }
+    }
 
-    // Subscribe to private channel
-    const channel = pusher.subscribe(`private-user-${userId}`);
+    const pusher = new Pusher(config.public.pusherKey, pusherConfig)
 
-    // Received events list
-    const contactStatusUpdates = ref<any[]>([]);
+    // Nom du canal selon le type
+    const channelName = channelType === 'user'
+        ? `private-user-${channelId}`
+        : `conversation-${channelId}`
 
-    channel.bind('contact-status-changed', ( any) => {
-        contactStatusUpdates.value.push(data);
-    });
+    console.log('📡 Subscribing to:', channelName)
+
+    // Subscribe to channel
+    const channel = ref(pusher.subscribe(channelName))
+
+    // Events storage
+    const contactStatusUpdates = ref<any[]>([])
+    const newMessages = ref<any[]>([])
+
+    // Bind events based on channel type
+    if (channelType === 'user') {
+        channel.value.bind('contact-status-changed', (data: any) => {
+            console.log('👤 Contact status changed:', data)
+            contactStatusUpdates.value.push(data)
+        })
+    } else if (channelType === 'conversation') {
+        channel.value.bind('new-message', (data: any) => {
+            console.log('💬 New message:', data)
+            newMessages.value.push(data)
+        })
+    }
 
     const cleanup = () => {
-        channel.unbind_all();
-        pusher.unsubscribe(`private-user-${userId}`);
-        pusher.disconnect();
-    };
+        console.log('🧹 Cleaning up Pusher connection:', channelName)
+        channel.value.unbind_all()
+        pusher.unsubscribe(channelName)
+        pusher.disconnect()
+    }
 
-    return { pusher, channel, contactStatusUpdates, cleanup };
+    return {
+        pusher,
+        channel,
+        contactStatusUpdates,
+        newMessages,
+        cleanup
+    }
 }
