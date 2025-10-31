@@ -22,6 +22,10 @@ const messagesContainer = ref<HTMLElement>()
 const editingMessageId = ref<string | null>(null)
 const editingContent = ref('')
 
+const isMobile = ref(false)
+
+const swipedMessageId = ref<string | null>(null)
+
 const { data: currentUser } = await useAsyncData(
     'current-user',
     () => apiFetch('/users/me')
@@ -54,6 +58,7 @@ onMounted(async () => {
 const startEditMessage = (message: any) => {
   editingMessageId.value = message.id
   editingContent.value = message.content
+  swipedMessageId.value = null // Reset swipe
 }
 
 const cancelEditMessage = () => {
@@ -62,28 +67,119 @@ const cancelEditMessage = () => {
 }
 
 const saveEditMessage = async (messageId: string) => {
-  if (!editingContent.value.trim()) return
+  console.log('🔵 saveEditMessage called with messageId:', messageId)
+  console.log('📝 editingContent:', editingContent.value)
+
+  if (!editingContent.value.trim()) {
+    console.warn('⚠️ Content is empty')
+    return
+  }
 
   try {
-    await updateMessage(messageId, editingContent.value)
+    console.log('📤 Calling updateMessage API...')
+    const result = await updateMessage(conversationId, messageId, editingContent.value)
+    console.log('✅ updateMessage result:', result)
+
     editingMessageId.value = null
     editingContent.value = ''
+
+    // Attends 500ms pour que Pusher propage l'événement
+    await new Promise(resolve => setTimeout(resolve, 500))
+    await refreshMessages()
   } catch (error) {
-    console.error('Failed to update message:', error)
+    console.error('❌ Failed to update message:', error)
   }
 }
 
 const confirmDeleteMessage = async (messageId: string) => {
+  console.log('🔵 confirmDeleteMessage called with messageId:', messageId)
+
   if (confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
     try {
-      await deleteMessage(messageId)
+      console.log('📤 Calling deleteMessage API...')
+      const result = await deleteMessage(conversationId, messageId)
+      console.log('✅ deleteMessage result:', result)
+
+      swipedMessageId.value = null
+
+      // Attends 500ms pour que Pusher propage l'événement
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await refreshMessages()
     } catch (error) {
-      console.error('Failed to delete message:', error)
+      console.error('❌ Failed to delete message:', error)
     }
   }
 }
 
-// Menu dropdown du header
+// Swipe handlers
+const swipeStates = ref<Record<string, { startX: number; currentX: number }>>({})
+
+const getSwipeState = (messageId: string) => {
+  if (!swipeStates.value[messageId]) {
+    swipeStates.value[messageId] = { startX: 0, currentX: 0 }
+  }
+  return swipeStates.value[messageId]
+}
+
+const handleMessagesContainerClick = (e: Event) => {
+  const target = e.target as HTMLElement
+
+  // Mobile
+  const isButtonClick = target.closest('button[data-action-button]')
+  if (!isButtonClick) {
+    swipedMessageId.value = null
+  }
+
+  // Desktop
+  const isMenuClick = target.closest('[data-menu-item]')
+  const isMenuButton = target.closest('button[data-menu-button]')
+
+  if (!isMenuClick && !isMenuButton) {
+    messageMenuOpen.value = null
+  }
+}
+
+const handleTouchStart = (e: TouchEvent, messageId: string) => {
+  const state = getSwipeState(messageId)
+  state.startX = e.touches[0].clientX
+  state.currentX = 0
+}
+
+const handleTouchMove = (e: TouchEvent, messageId: string) => {
+  const state = getSwipeState(messageId)
+  const diff = state.startX - e.touches[0].clientX
+
+  // Swipe to the left only (diff > 0) and max 100px
+  if (diff > 0 && diff < 100) {
+    state.currentX = diff
+  }
+}
+
+const handleTouchEnd = (e: TouchEvent, messageId: string) => {
+  e.stopPropagation()
+  const state = getSwipeState(messageId)
+
+  if (state.currentX > 50) {
+    swipedMessageId.value = messageId
+  } else {
+    swipedMessageId.value = null
+  }
+  state.currentX = 0
+}
+
+const getSwipeTransform = (messageId: string) => {
+  const state = getSwipeState(messageId)
+
+  if (swipedMessageId.value === messageId) {
+    return 'translateX(-100px)'
+  }
+  if (state.currentX > 0) {
+    return `translateX(-${state.currentX}px)`
+  }
+  return 'translateX(0)'
+}
+
+// Header dropdown menu
 const conversationMenuItems = [
   [{
     label: 'Ajouter des contacts',
@@ -200,17 +296,24 @@ const getMessageSpacing = (index: number) => {
 // Listen to Pusher for new messages
 onMounted(() => {
   const config = useRuntimeConfig()
+
+  // Detects mobile with touch support + screen size
+  isMobile.value = 'ontouchstart' in window && window.innerWidth < 768
+
+  // Update on resize
+  window.addEventListener('resize', () => {
+    isMobile.value = 'ontouchstart' in window && window.innerWidth < 768
+  })
+
   const pusher = new Pusher(config.public.pusherKey, {
     cluster: config.public.pusherCluster || 'eu',
   })
 
   const channel = pusher.subscribe(`conversation-${conversationId}`)
 
-  // New message
   channel.bind('new-message', (message: any) => {
     if (messages.value && !messages.value.find((m: any) => m.id === message.id)) {
       messages.value = [...messages.value, message]
-
       nextTick(() => {
         if (messagesContainer.value) {
           messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
@@ -219,7 +322,6 @@ onMounted(() => {
     }
   })
 
-  // Updated message
   channel.bind('message-updated', (updatedMessage: any) => {
     if (messages.value) {
       const index = messages.value.findIndex((m: any) => m.id === updatedMessage.id)
@@ -233,7 +335,6 @@ onMounted(() => {
     }
   })
 
-  // Deleted message
   channel.bind('message-deleted', (data: any) => {
     if (messages.value) {
       messages.value = messages.value.filter((m: any) => m.id !== data.messageId)
@@ -340,7 +441,6 @@ const sendMessage = async () => {
           <p class="text-xs text-gray-500">Online</p>
         </div>
 
-        <!-- Menu -->
         <div class="relative">
           <UButton
               icon="i-heroicons-ellipsis-vertical"
@@ -348,8 +448,6 @@ const sendMessage = async () => {
               size="sm"
               @click="headerMenuOpen = !headerMenuOpen"
           />
-
-          <!-- Dropdown -->
           <div
               v-if="headerMenuOpen"
               class="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
@@ -381,14 +479,17 @@ const sendMessage = async () => {
       </div>
 
       <!-- Messages -->
-      <div ref="messagesContainer" class="flex-1 overflow-y-auto px-4 py-4">
+      <div
+          ref="messagesContainer"
+          class="flex-1 overflow-y-auto px-4 py-4"
+          @click="handleMessagesContainerClick"
+      >
         <div v-if="!messages || messages.length === 0" class="text-center text-gray-500 py-12">
           No messages yet. Start the conversation!
         </div>
 
         <div v-else class="max-w-4xl mx-auto">
           <template v-for="(message, index) in messages" :key="message.id">
-            <!-- Date separator -->
             <div
                 v-if="shouldShowDateSeparator(index)"
                 class="flex justify-center my-6"
@@ -398,15 +499,13 @@ const sendMessage = async () => {
               </div>
             </div>
 
-            <!-- Message -->
             <div :class="getMessageSpacing(index)">
               <div
                   :class="[
-                    'flex group',
-                    message.senderId === userId ? 'justify-end' : 'justify-start'
-                  ]"
+              'flex group',
+              message.senderId === userId ? 'justify-end' : 'justify-start'
+            ]"
               >
-                <!-- Avatar -->
                 <div
                     v-if="message.senderId !== userId"
                     class="w-8 flex items-end mr-2"
@@ -419,12 +518,10 @@ const sendMessage = async () => {
                   />
                 </div>
 
-                <!-- Content -->
                 <div
                     class="flex flex-col max-w-[75%]"
                     :class="message.senderId === userId ? 'items-end' : 'items-start'"
                 >
-                  <!-- Sender name -->
                   <p
                       v-if="message.senderId !== userId && !isSameSenderAsPrevious(index)"
                       class="text-xs font-semibold text-gray-700 mb-1 px-2"
@@ -432,7 +529,6 @@ const sendMessage = async () => {
                     {{ message.sender?.username || message.sender?.firstName }}
                   </p>
 
-                  <!-- Message (edit mode) -->
                   <div v-if="editingMessageId === message.id" class="flex flex-col gap-2 w-full">
                     <UTextarea v-model="editingContent" :rows="2" autofocus class="w-full" />
                     <div class="flex gap-2">
@@ -441,57 +537,98 @@ const sendMessage = async () => {
                     </div>
                   </div>
 
-                  <!-- Message (normal mode) -->
-                  <div v-else class="relative flex items-center gap-2">
-                    <!-- Menu -->
-                    <div v-if="message.senderId === userId" class="relative">
-                      <UButton
-                          icon="i-heroicons-ellipsis-vertical"
-                          size="2xs"
-                          color="gray"
-                          variant="ghost"
-                          class="opacity-0 group-hover:opacity-100 transition-opacity"
-                          @click="messageMenuOpen = messageMenuOpen === message.id ? null : message.id"
-                      />
-
-                      <!-- Dropdown -->
-                      <div
-                          v-if="messageMenuOpen === message.id"
-                          class="absolute left-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
-                          @click="messageMenuOpen = null"
+                  <!-- Message sent (with swipe on mobile) -->
+                  <div v-else-if="message.senderId === userId" class="relative w-full">
+                    <!-- Hidden actions (revealed by swiping on mobile) -->
+                    <div
+                        v-if="isMobile"
+                        class="absolute top-0 bottom-0 w-[100px] flex items-center justify-end gap-2 pr-2"
+                        :style="swipedMessageId === message.id ? 'right: 0' : 'right: -100px'"
+                    >
+                      <button
+                          data-action-button="edit"
+                          class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600"
+                          @click.stop="startEditMessage(message)"
                       >
-                        <button
-                            class="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2 text-gray-500"
-                            @click="startEditMessage(message)"
-                        >
-                          <UIcon name="i-heroicons-pencil" class="w-3 h-3" />
-                          Modifier
-                        </button>
-                        <button
-                            class="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 flex items-center gap-2 text-red-600"
-                            @click="confirmDeleteMessage(message.id)"
-                        >
-                          <UIcon name="i-heroicons-trash" class="w-3 h-3" />
-                          Supprimer
-                        </button>
-                      </div>
+                        <UIcon name="i-heroicons-pencil" class="w-5 h-5" />
+                      </button>
+                      <button
+                          data-action-button="delete"
+                          class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          @click.stop="confirmDeleteMessage(message.id)"
+                      >
+                        <UIcon name="i-heroicons-trash" class="w-5 h-5" />
+                      </button>
                     </div>
 
-                    <!-- Bubble -->
+                    <!-- Message container (horizontal swipe on mobile) -->
+                    <div
+                        class="relative flex items-center gap-2 transition-transform"
+                        :style="isMobile && swipedMessageId === message.id ? { transform: 'translateX(-100px)' } : {}"
+                        @touchstart="isMobile ? handleTouchStart($event, message.id) : null"
+                        @touchmove="isMobile ? handleTouchMove($event, message.id) : null"
+                        @touchend="isMobile ? handleTouchEnd($event, message.id) : null"
+                    >
+                      <!-- Desktop menu -->
+                      <div v-if="!isMobile" class="relative">
+                        <UButton
+                            icon="i-heroicons-ellipsis-vertical"
+                            size="2xs"
+                            color="gray"
+                            variant="ghost"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity"
+                            data-menu-button
+                            @click="messageMenuOpen = messageMenuOpen === message.id ? null : message.id"
+                        />
+                        <div
+                            v-if="messageMenuOpen === message.id"
+                            class="absolute left-0 bottom-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 px-2 z-50 flex gap-2"
+                            data-menu-item
+                        >
+                          <button
+                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded"
+                              @click="startEditMessage(message)"
+                          >
+                            <UIcon name="i-heroicons-pencil" class="w-3 h-3" />
+                            Modifier
+                          </button>
+                          <button
+                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded text-red-600"
+                              @click="confirmDeleteMessage(message.id)"
+                          >
+                            <UIcon name="i-heroicons-trash" class="w-3 h-3" />
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Bubble (with swipe on mobile) -->
+                      <div
+                          :class="[
+                            'px-4 py-2 shadow-sm flex-1',
+                            getBorderRadiusClass(index, true),
+                            'bg-blue-600 text-white'
+                          ]"
+                          @click.stop
+                      >
+                        <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Message received -->
+                  <div v-else>
                     <div
                         :class="[
-                          'px-4 py-2 shadow-sm',
-                          getBorderRadiusClass(index, message.senderId === userId),
-                          message.senderId === userId
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-900'
-                        ]"
+                    'px-4 py-2 shadow-sm',
+                    getBorderRadiusClass(index, false),
+                    'bg-gray-200 text-gray-900'
+                  ]"
                     >
                       <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
                     </div>
                   </div>
 
-                  <!-- Timestamp -->
                   <p
                       v-if="!isSameSenderAsNext(index) && editingMessageId !== message.id"
                       class="text-xs text-gray-500 mt-1 px-2"

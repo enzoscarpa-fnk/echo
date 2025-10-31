@@ -23,15 +23,15 @@ export const useMessages = () => {
         })
     }
 
-    const updateMessage = async (messageId: string, content: string) => {
-        return await apiFetch(`/messages/${messageId}`, {
+    const updateMessage = async (conversationId: string, messageId: string, content: string) => {
+        return await apiFetch(`/conversations/${conversationId}/messages/${messageId}`, {
             method: 'PATCH',
             body: { content }
         })
     }
 
-    const deleteMessage = async (messageId: string) => {
-        return await apiFetch(`/messages/${messageId}`, {
+    const deleteMessage = async (conversationId: string, messageId: string) => {
+        return await apiFetch(`/conversations/${conversationId}/messages/${messageId}`, {
             method: 'DELETE'
         })
     }
