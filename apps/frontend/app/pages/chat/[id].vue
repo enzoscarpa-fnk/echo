@@ -140,12 +140,20 @@ const handleMessagesContainerClick = (e: Event) => {
 }
 
 const handleTouchStart = (e: TouchEvent, messageId: string) => {
+  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
+    return
+  }
+
   const state = getSwipeState(messageId)
   state.startX = e.touches[0].clientX
   state.currentX = 0
 }
 
 const handleTouchMove = (e: TouchEvent, messageId: string) => {
+  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
+    return
+  }
+
   const state = getSwipeState(messageId)
   const diff = state.startX - e.touches[0].clientX
 
@@ -156,6 +164,10 @@ const handleTouchMove = (e: TouchEvent, messageId: string) => {
 }
 
 const handleTouchEnd = (e: TouchEvent, messageId: string) => {
+  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
+    return
+  }
+
   e.stopPropagation()
   const state = getSwipeState(messageId)
 
@@ -168,15 +180,22 @@ const handleTouchEnd = (e: TouchEvent, messageId: string) => {
 }
 
 const getSwipeTransform = (messageId: string) => {
-  const state = getSwipeState(messageId)
+  console.log(`🔍 getSwipeTransform called for ${messageId}`)
+  console.log(`   swipedMessageId: ${swipedMessageId.value}`)
+  console.log(`   Match: ${swipedMessageId.value === messageId}`)
 
-  if (swipedMessageId.value === messageId) {
-    return 'translateX(-100px)'
+  if (swipedMessageId.value !== messageId) {
+    return 'translateX(0)'
   }
+
+  const state = getSwipeState(messageId)
+  console.log(`   state.currentX: ${state.currentX}`)
+
   if (state.currentX > 0) {
     return `translateX(-${state.currentX}px)`
   }
-  return 'translateX(0)'
+
+  return 'translateX(-100px)'
 }
 
 // Header dropdown menu
@@ -481,7 +500,7 @@ const sendMessage = async () => {
       <!-- Messages -->
       <div
           ref="messagesContainer"
-          class="flex-1 overflow-y-auto px-4 py-4"
+          class="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4"
           @click="handleMessagesContainerClick"
       >
         <div v-if="!messages || messages.length === 0" class="text-center text-gray-500 py-12">
@@ -502,9 +521,9 @@ const sendMessage = async () => {
             <div :class="getMessageSpacing(index)">
               <div
                   :class="[
-              'flex group',
-              message.senderId === userId ? 'justify-end' : 'justify-start'
-            ]"
+                    'flex group',
+                    message.senderId === userId ? 'justify-end' : 'justify-start'
+                  ]"
               >
                 <div
                     v-if="message.senderId !== userId"
@@ -537,9 +556,9 @@ const sendMessage = async () => {
                     </div>
                   </div>
 
-                  <!-- Message sent (with swipe on mobile) -->
+                  <!-- Message sent -->
                   <div v-else-if="message.senderId === userId" class="relative w-full">
-                    <!-- Hidden actions (revealed by swiping on mobile) -->
+                    <!-- Mobile: swipe actions -->
                     <div
                         v-if="isMobile"
                         class="absolute top-0 bottom-0 w-[100px] flex items-center justify-end gap-2 pr-2"
@@ -561,13 +580,11 @@ const sendMessage = async () => {
                       </button>
                     </div>
 
-                    <!-- Message container (horizontal swipe on mobile) -->
+                    <!-- Message container -->
                     <div
-                        class="relative flex items-center gap-2 transition-transform"
-                        :style="isMobile && swipedMessageId === message.id ? { transform: 'translateX(-100px)' } : {}"
-                        @touchstart="isMobile ? handleTouchStart($event, message.id) : null"
-                        @touchmove="isMobile ? handleTouchMove($event, message.id) : null"
-                        @touchend="isMobile ? handleTouchEnd($event, message.id) : null"
+                        class="relative flex items-center gap-2 overflow-hidden"
+                        :class="isMobile ? 'transition-transform' : ''"
+                        :style="isMobile && swipedMessageId === message.id ? { transform: getSwipeTransform(message.id) } : {}"
                     >
                       <!-- Desktop menu -->
                       <div v-if="!isMobile" class="relative">
@@ -586,14 +603,14 @@ const sendMessage = async () => {
                             data-menu-item
                         >
                           <button
-                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded"
+                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded whitespace-nowrap"
                               @click="startEditMessage(message)"
                           >
                             <UIcon name="i-heroicons-pencil" class="w-3 h-3" />
                             Modifier
                           </button>
                           <button
-                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded text-red-600"
+                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded text-red-600 whitespace-nowrap"
                               @click="confirmDeleteMessage(message.id)"
                           >
                             <UIcon name="i-heroicons-trash" class="w-3 h-3" />
@@ -602,16 +619,23 @@ const sendMessage = async () => {
                         </div>
                       </div>
 
-                      <!-- Bubble (with swipe on mobile) -->
+                      <!-- Bubble -->
                       <div
-                          :class="[
-                            'px-4 py-2 shadow-sm flex-1',
+                          class="flex-1"
+                          @touchstart="isMobile ? handleTouchStart($event, message.id) : null"
+                          @touchmove="isMobile ? handleTouchMove($event, message.id) : null"
+                          @touchend="isMobile ? handleTouchEnd($event, message.id) : null"
+                      >
+                        <div
+                            :class="[
+                            'px-4 py-2 shadow-sm w-full',
                             getBorderRadiusClass(index, true),
                             'bg-blue-600 text-white'
                           ]"
-                          @click.stop
-                      >
-                        <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
+                            @click.stop
+                        >
+                          <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -620,10 +644,10 @@ const sendMessage = async () => {
                   <div v-else>
                     <div
                         :class="[
-                    'px-4 py-2 shadow-sm',
-                    getBorderRadiusClass(index, false),
-                    'bg-gray-200 text-gray-900'
-                  ]"
+                          'px-4 py-2 shadow-sm',
+                          getBorderRadiusClass(index, false),
+                          'bg-gray-200 text-gray-900'
+                        ]"
                     >
                       <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
                     </div>
