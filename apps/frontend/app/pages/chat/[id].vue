@@ -26,6 +26,9 @@ const isMobile = ref(false)
 
 const swipedMessageId = ref<string | null>(null)
 
+const menuAlignment = ref<Record<string, 'left' | 'right'>>({})
+const menuPosition = ref<Record<string, { top: number; left: number; width: number }>>({})
+
 const { data: currentUser } = await useAsyncData(
     'current-user',
     () => apiFetch('/users/me')
@@ -196,6 +199,45 @@ const getSwipeTransform = (messageId: string) => {
   }
 
   return 'translateX(-100px)'
+}
+
+// Desktop menu
+const calculateMenuAlignment = (messageId: string, element: HTMLElement) => {
+  nextTick(() => {
+    const button = element.querySelector('[data-menu-button]') as HTMLElement
+    if (!button) return
+
+    const buttonRect = button.getBoundingClientRect()
+    const menuWidth = 160
+    const padding = 20
+
+    // Position du bouton
+    menuPosition.value[messageId] = {
+      top: buttonRect.top,
+      left: buttonRect.left,
+      width: buttonRect.width,
+    }
+
+    // Vérifie si sort du viewport
+    const wouldExitRight = buttonRect.right + menuWidth + padding > window.innerWidth
+    menuAlignment.value[messageId] = wouldExitRight ? 'right' : 'left'
+  })
+}
+
+const getMenuStyle = (messageId: string) => {
+  const pos = menuPosition.value[messageId]
+  if (!pos) return {}
+
+  const isRight = menuAlignment.value[messageId] === 'right'
+
+  return {
+    position: 'fixed' as const,
+    top: `${pos.top - 12}px`, // Au-dessus du bouton
+    [isRight ? 'right' : 'left']: isRight
+        ? `${window.innerWidth - (pos.left + pos.width)}px`
+        : `${pos.left}px`,
+    zIndex: 50,
+  }
 }
 
 // Header dropdown menu
@@ -587,6 +629,32 @@ const sendMessage = async () => {
                         :style="isMobile && swipedMessageId === message.id ? { transform: getSwipeTransform(message.id) } : {}"
                     >
                       <!-- Desktop menu -->
+                      <Teleport v-if="!isMobile && messageMenuOpen === message.id" to="body">
+                        <div
+                            v-if="messageMenuOpen === message.id"
+                            :style="getMenuStyle(message.id)"
+                            class="bg-white rounded-lg shadow-lg border border-gray-200 py-2 px-2 flex gap-2"
+                            data-menu-item
+                        >
+                          <button
+                              class="px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded whitespace-nowrap"
+                              @click="startEditMessage(message)"
+                          >
+                            <UIcon name="i-heroicons-pencil" class="w-3 h-3" />
+                            Modifier
+                          </button>
+                          <button
+                              class="px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded text-red-600 whitespace-nowrap"
+                              @click="confirmDeleteMessage(message.id)"
+                          >
+                            <UIcon name="i-heroicons-trash" class="w-3 h-3" />
+                            Supprimer
+                          </button>
+                        </div>
+                      </Teleport>
+
+
+                      <!-- Button -->
                       <div v-if="!isMobile" class="relative">
                         <UButton
                             icon="i-heroicons-ellipsis-vertical"
@@ -595,28 +663,11 @@ const sendMessage = async () => {
                             variant="ghost"
                             class="opacity-0 group-hover:opacity-100 transition-opacity"
                             data-menu-button
-                            @click="messageMenuOpen = messageMenuOpen === message.id ? null : message.id"
+                            @click="(e) => {
+            calculateMenuAlignment(message.id, (e.target as HTMLElement).closest('.relative') || document.body)
+            messageMenuOpen = messageMenuOpen === message.id ? null : message.id
+          }"
                         />
-                        <div
-                            v-if="messageMenuOpen === message.id"
-                            class="absolute left-0 bottom-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 px-2 z-50 flex gap-2"
-                            data-menu-item
-                        >
-                          <button
-                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded whitespace-nowrap"
-                              @click="startEditMessage(message)"
-                          >
-                            <UIcon name="i-heroicons-pencil" class="w-3 h-3" />
-                            Modifier
-                          </button>
-                          <button
-                              class="flex-1 px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded text-red-600 whitespace-nowrap"
-                              @click="confirmDeleteMessage(message.id)"
-                          >
-                            <UIcon name="i-heroicons-trash" class="w-3 h-3" />
-                            Supprimer
-                          </button>
-                        </div>
                       </div>
 
                       <!-- Bubble -->
@@ -628,10 +679,10 @@ const sendMessage = async () => {
                       >
                         <div
                             :class="[
-                            'px-4 py-2 shadow-sm w-full',
-                            getBorderRadiusClass(index, true),
-                            'bg-blue-600 text-white'
-                          ]"
+          'px-4 py-2 shadow-sm w-full',
+          getBorderRadiusClass(index, true),
+          'bg-blue-600 text-white'
+        ]"
                             @click.stop
                         >
                           <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
@@ -639,6 +690,7 @@ const sendMessage = async () => {
                       </div>
                     </div>
                   </div>
+
 
                   <!-- Message received -->
                   <div v-else>
