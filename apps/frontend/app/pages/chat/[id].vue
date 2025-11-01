@@ -70,18 +70,12 @@ const cancelEditMessage = () => {
 }
 
 const saveEditMessage = async (messageId: string) => {
-  console.log('🔵 saveEditMessage called with messageId:', messageId)
-  console.log('📝 editingContent:', editingContent.value)
-
   if (!editingContent.value.trim()) {
-    console.warn('⚠️ Content is empty')
     return
   }
 
   try {
-    console.log('📤 Calling updateMessage API...')
     const result = await updateMessage(conversationId, messageId, editingContent.value)
-    console.log('✅ updateMessage result:', result)
 
     editingMessageId.value = null
     editingContent.value = ''
@@ -90,18 +84,13 @@ const saveEditMessage = async (messageId: string) => {
     await new Promise(resolve => setTimeout(resolve, 500))
     await refreshMessages()
   } catch (error) {
-    console.error('❌ Failed to update message:', error)
   }
 }
 
 const confirmDeleteMessage = async (messageId: string) => {
-  console.log('🔵 confirmDeleteMessage called with messageId:', messageId)
-
   if (confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
     try {
-      console.log('📤 Calling deleteMessage API...')
       const result = await deleteMessage(conversationId, messageId)
-      console.log('✅ deleteMessage result:', result)
 
       swipedMessageId.value = null
 
@@ -109,7 +98,6 @@ const confirmDeleteMessage = async (messageId: string) => {
       await new Promise(resolve => setTimeout(resolve, 500))
       await refreshMessages()
     } catch (error) {
-      console.error('❌ Failed to delete message:', error)
     }
   }
 }
@@ -144,7 +132,7 @@ const handleMessagesContainerClick = (e: Event) => {
 
 const handleTouchStart = (e: TouchEvent, messageId: string) => {
   if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
-    return
+    swipedMessageId.value = null
   }
 
   const state = getSwipeState(messageId)
@@ -183,16 +171,11 @@ const handleTouchEnd = (e: TouchEvent, messageId: string) => {
 }
 
 const getSwipeTransform = (messageId: string) => {
-  console.log(`🔍 getSwipeTransform called for ${messageId}`)
-  console.log(`   swipedMessageId: ${swipedMessageId.value}`)
-  console.log(`   Match: ${swipedMessageId.value === messageId}`)
-
   if (swipedMessageId.value !== messageId) {
     return 'translateX(0)'
   }
 
   const state = getSwipeState(messageId)
-  console.log(`   state.currentX: ${state.currentX}`)
 
   if (state.currentX > 0) {
     return `translateX(-${state.currentX}px)`
