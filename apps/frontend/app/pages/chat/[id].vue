@@ -13,6 +13,13 @@ const { getMessages, sendMessage: sendMsg, updateMessage, deleteMessage, markAsR
 const { apiFetch } = useApi()
 
 const headerMenuOpen = ref(false)
+const renamingConversationName = ref('')
+
+const isRenameModalOpen = ref(false)
+const isAddContactModalOpen = ref(false)
+const selectedContactsToAdd = ref<string[]>([])
+const availableContacts = ref<any[]>([])
+
 const messageMenuOpen = ref<string | null>(null)
 
 const newMessage = ref('')
@@ -224,23 +231,83 @@ const getMenuStyle = (messageId: string) => {
 }
 
 // Header dropdown menu
-const conversationMenuItems = [
-  [{
-    label: 'Ajouter des contacts',
-    icon: 'i-heroicons-user-plus',
-    click: () => console.log('Add contacts') // TODO: Implémenter
-  }],
-  [{
-    label: 'Renommer',
-    icon: 'i-heroicons-pencil',
-    click: () => console.log('Rename') // TODO: Implémenter
-  }],
-  [{
-    label: 'Supprimer',
-    icon: 'i-heroicons-trash',
-    click: () => console.log('Delete') // TODO: Implémenter
-  }]
-]
+const handleAddContact = async () => {
+  try {
+    const { data } = await useAsyncData('available-contacts', () =>
+        apiFetch('/users/contacts')
+    )
+    availableContacts.value = data.value || []
+    selectedContactsToAdd.value = []
+    isAddContactModalOpen.value = true
+  } catch (error) {
+    console.error('Failed to load contacts:', error)
+  }
+}
+
+const confirmAddContacts = async () => {
+  if (selectedContactsToAdd.value.length === 0) return
+
+  try {
+    await apiFetch(`/conversations/${conversationId}/participants`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds: selectedContactsToAdd.value }),
+    })
+
+    selectedContactsToAdd.value = []
+    isAddContactModalOpen.value = false
+    headerMenuOpen.value = false
+
+    await refreshMessages()
+  } catch (error) {
+    console.error('Failed to add contacts:', error)
+  }
+}
+
+const handleRenameConversation = () => {
+  renamingConversationName.value = conversation.value?.name || ''
+  isRenameModalOpen.value = true
+}
+
+const confirmRenameConversation = async (newName: string) => {
+  if (!newName.trim()) return
+
+  try {
+    await apiFetch(`/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: newName }),
+    })
+
+    // Update title locally
+    if (conversation.value) {
+      conversation.value.name = newName
+    }
+
+    renamingConversationName.value = ''
+    isRenameModalOpen.value = false
+    headerMenuOpen.value = false
+  } catch (error) {
+    console.error('Failed to rename conversation:', error)
+  }
+}
+
+const handleDeleteConversation = () => {
+  if (confirm('Êtes-vous sûr de vouloir supprimer cette conversation ?')) {
+    deleteConversation()
+  }
+}
+
+const deleteConversation = async () => {
+  try {
+    await apiFetch(`/conversations/${conversationId}`, {
+      method: 'DELETE',
+    })
+
+    // Retour à la liste des contacts
+    navigateTo('/contacts')
+  } catch (error) {
+    console.error('Failed to delete conversation:', error)
+  }
+}
 
 // Check if messages are more than 2 hours apart
 const hasLongTimeDifference = (index: number) => {
@@ -499,21 +566,21 @@ const sendMessage = async () => {
           >
             <button
                 class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                @click="console.log('Add contacts')"
+                @click="handleAddContact"
             >
               <UIcon name="i-heroicons-user-plus" class="w-4 h-4" />
               Ajouter des contacts
             </button>
             <button
                 class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                @click="console.log('Rename')"
+                @click="handleRenameConversation"
             >
               <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
               Renommer
             </button>
             <button
                 class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-red-600"
-                @click="console.log('Delete')"
+                @click="handleDeleteConversation"
             >
               <UIcon name="i-heroicons-trash" class="w-4 h-4" />
               Supprimer
@@ -727,5 +794,137 @@ const sendMessage = async () => {
         </form>
       </div>
     </template>
+  </div>
+
+  <!-- Rename Conversation Popover -->
+  <div
+      v-if="isRenameModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click="isRenameModalOpen = false"
+  >
+    <UCard
+        class="w-96"
+        @click.stop
+        :ui="{ divide: 'divide-y divide-gray-100 dark:divide-gray-800' }"
+    >
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-semibold leading-6 text-gray-900">
+            Renommer la conversation
+          </h3>
+          <UButton
+              color="gray"
+              variant="ghost"
+              icon="i-heroicons-x-mark-20-solid"
+              class="-my-1"
+              @click="isRenameModalOpen = false"
+          />
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <UInput
+            v-model="renamingConversationName"
+            placeholder="Nouveau nom..."
+            autofocus
+        />
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+              color="gray"
+              variant="ghost"
+              @click="isRenameModalOpen = false"
+          >
+            Annuler
+          </UButton>
+          <UButton
+              @click="confirmRenameConversation(renamingConversationName)"
+              :disabled="!renamingConversationName.trim()"
+          >
+            Renommer
+          </UButton>
+        </div>
+      </template>
+    </UCard>
+  </div>
+
+  <!-- Add Contacts Popover -->
+  <div
+      v-if="isAddContactModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click="isAddContactModalOpen = false"
+  >
+    <UCard
+        class="w-96"
+        @click.stop
+        :ui="{ divide: 'divide-y divide-gray-100 dark:divide-gray-800' }"
+    >
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-semibold leading-6 text-gray-900">
+            Ajouter des contacts
+          </h3>
+          <UButton
+              color="gray"
+              variant="ghost"
+              icon="i-heroicons-x-mark-20-solid"
+              class="-my-1"
+              @click="isAddContactModalOpen = false"
+          />
+        </div>
+      </template>
+
+      <div class="space-y-3 max-h-96 overflow-y-auto">
+        <div
+            v-for="contact in availableContacts"
+            :key="contact.id"
+            class="flex items-center gap-3 p-2 rounded hover:bg-gray-50"
+        >
+          <UCheckbox
+              :model-value="selectedContactsToAdd.includes(contact.id)"
+              @update:model-value="(checked) => {
+              if (checked) {
+                selectedContactsToAdd.push(contact.id)
+              } else {
+                selectedContactsToAdd = selectedContactsToAdd.filter(id => id !== contact.id)
+              }
+            }"
+          />
+          <UAvatar
+              :src="contact.imageUrl"
+              :alt="contact.firstName"
+              size="sm"
+          />
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-sm truncate">
+              {{ contact.firstName }} {{ contact.lastName }}
+            </p>
+            <p class="text-xs text-gray-500 truncate">
+              {{ contact.email }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+              color="gray"
+              variant="ghost"
+              @click="isAddContactModalOpen = false"
+          >
+            Annuler
+          </UButton>
+          <UButton
+              @click="confirmAddContacts"
+              :disabled="selectedContactsToAdd.length === 0"
+          >
+            Ajouter ({{ selectedContactsToAdd.length }})
+          </UButton>
+        </div>
+      </template>
+    </UCard>
   </div>
 </template>

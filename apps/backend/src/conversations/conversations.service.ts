@@ -349,6 +349,70 @@ export class ConversationsService {
     }
 
     /**
+     * Add multiple participants to a group conversation
+     */
+    async addParticipants(
+        conversationId: string,
+        userIds: string[],
+        currentUserId: string,
+    ) {
+        const conversation = await this.findOne(conversationId, currentUserId);
+
+        if (!conversation.isGroup) {
+            throw new BadRequestException('Cannot add participants to 1:1 conversations');
+        }
+
+        // Check if current user has ADMIN role
+        const currentUserParticipant = conversation.participants.find(
+            (p) => p.userId === currentUserId,
+        );
+
+        if (!currentUserParticipant || currentUserParticipant.role !== MemberRole.ADMIN) {
+            throw new ForbiddenException('Only admins can add participants to group conversations');
+        }
+
+        // Add each participant
+        for (const userId of userIds) {
+            // Check if already participant
+            const alreadyParticipant = conversation.participants.some(
+                (p) => p.userId === userId,
+            );
+
+            if (alreadyParticipant) {
+                continue; // Skip if already participant
+            }
+
+            // Validate that the user is an accepted contact
+            const contact = await this.prisma.contact.findFirst({
+                where: {
+                    status: 'ACCEPTED',
+                    OR: [
+                        { initiatorId: currentUserId, receiverId: userId },
+                        { initiatorId: userId, receiverId: currentUserId },
+                    ],
+                },
+            });
+
+            if (!contact) {
+                throw new BadRequestException(
+                    `User ${userId} must be an accepted contact to be added`,
+                );
+            }
+
+            // Add participant with MEMBER role
+            await this.prisma.conversationParticipant.create({
+            data: {
+                conversationId,
+                userId,
+                role: MemberRole.MEMBER,
+                },
+            });
+        }
+
+        return this.findOne(conversationId, currentUserId);
+    }
+
+    /**
      * Remove a participant from a group conversation (with role validation)
      */
     async removeParticipant(
@@ -387,6 +451,58 @@ export class ConversationsService {
         });
 
         return { message: 'Participant removed successfully' };
+    }
+
+    /**
+     * Update conversation name (rename)
+     */
+    async update(
+        conversationId: string,
+        name: string,
+        currentUserId: string,
+    ) {
+        console.log('🔍 Service update called:', { conversationId, name, currentUserId });
+
+        const conversation = await this.findOne(conversationId, currentUserId);
+        console.log('📌 Conversation found:', { isGroup: conversation.isGroup });
+
+        const currentUserParticipant = conversation.participants.find(
+            (p) => p.userId === currentUserId,
+        );
+
+        if (conversation.isGroup) {
+            if (!currentUserParticipant || currentUserParticipant.role !== MemberRole.ADMIN) {
+                throw new ForbiddenException('Only admins can rename group conversations');
+            }
+        } else {
+            if (!currentUserParticipant) {
+                throw new ForbiddenException('You are not a participant of this conversation');
+            }
+        }
+
+        return this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: { name },
+            include: {
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                clerkId: true,
+                                email: true,
+                                username: true,
+                                firstName: true,
+                                lastName: true,
+                                imageUrl: true,
+                                isOnline: true,
+                                lastSeenAt: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
     }
 
     /**

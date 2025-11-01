@@ -12,6 +12,7 @@ import {
 import { ConversationsService } from './conversations.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateParticipantRoleDto } from "./dto/update-participant-role.dto";
+import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
 
 @Controller('conversations')
@@ -56,6 +57,28 @@ export class ConversationsController {
     }
 
     /**
+     * PATCH /api/conversations/:id
+     * Update conversation name (rename)
+     */
+    @Patch(':id')
+    async update(
+        @Param('id') conversationId: string,
+        @Body() updateConversationDto: UpdateConversationDto,
+        @Req() req: any,
+    ) {
+        console.log('📝 Update conversation received:', {
+            conversationId,
+            body: updateConversationDto,
+        });
+
+        return this.conversationsService.update(
+            conversationId,
+            updateConversationDto.name,
+            req.user.id,
+        );
+    }
+
+    /**
      * GET /api/conversations/:id
      * Get a specific conversation
      */
@@ -66,17 +89,18 @@ export class ConversationsController {
 
     /**
      * POST /api/conversations/:id/participants
-     * Add a participant to a group conversation
+     * Add participant(s) to a group conversation
      */
     @Post(':id/participants')
     async addParticipant(
         @Param('id') conversationId: string,
-        @Body('userId') userId: string,
+        @Body() body: { userId?: string; userIds?: string[] },
         @Req() req: any,
     ) {
-        return this.conversationsService.addParticipant(
+        const userIds = body.userIds || (body.userId ? [body.userId] : []);
+        return this.conversationsService.addParticipants(
             conversationId,
-            userId,
+            userIds,
             req.user.id,
         );
     }

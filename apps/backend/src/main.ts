@@ -1,15 +1,17 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { json } from 'express';
+import { json, raw } from 'express';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule, {
-        rawBody: true,
-    });
+    const app = await NestFactory.create(AppModule);
 
     app.use(cookieParser());
+
+    app.use(json({ limit: '1mb' }));
+
+    app.use('/webhooks', raw({ type: 'application/json' }));
 
     // Enable CORS for frontend
     app.enableCors({
