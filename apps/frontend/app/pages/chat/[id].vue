@@ -5,6 +5,10 @@ definePageMeta({
   middleware: 'auth'
 })
 
+// ============================================================================
+// ROUTE & COMPOSABLES
+// ============================================================================
+
 const route = useRoute()
 const conversationId = route.params.id as string
 
@@ -12,15 +16,40 @@ const { getConversation } = useConversations()
 const { getMessages, sendMessage: sendMsg, updateMessage, deleteMessage, markAsRead } = useMessages()
 const { apiFetch } = useApi()
 
+// ============================================================================
+// REACTIVE STATE - DATA
+// ============================================================================
+
+const { data: currentUser } = await useAsyncData(
+    'current-user',
+    () => apiFetch('/users/me')
+)
+
+const { data: conversation } = await useAsyncData(
+    `conversation-${conversationId}`,
+    () => getConversation(conversationId)
+)
+
+const { data: messages, refresh: refreshMessages } = await useAsyncData(
+    `messages-${conversationId}`,
+    () => getMessages(conversationId)
+)
+
+// ============================================================================
+// REACTIVE STATE - UI FLAGS
+// ============================================================================
+
 const headerMenuOpen = ref(false)
-const renamingConversationName = ref('')
+const messageMenuOpen = ref<string | null>(null)
+const isMobile = ref(false)
+const swipedMessageId = ref<string | null>(null)
 
 const isRenameModalOpen = ref(false)
 const isAddContactModalOpen = ref(false)
-const selectedContactsToAdd = ref<string[]>([])
-const availableContacts = ref<any[]>([])
 
-const messageMenuOpen = ref<string | null>(null)
+// ============================================================================
+// REACTIVE STATE - MESSAGE INPUT & EDITING
+// ============================================================================
 
 const newMessage = ref('')
 const loading = ref(false)
@@ -29,46 +58,66 @@ const messagesContainer = ref<HTMLElement>()
 const editingMessageId = ref<string | null>(null)
 const editingContent = ref('')
 
-const isMobile = ref(false)
+// ============================================================================
+// REACTIVE STATE - CONVERSATION ACTIONS
+// ============================================================================
 
-const swipedMessageId = ref<string | null>(null)
+const renamingConversationName = ref('')
+const selectedContactsToAdd = ref<string[]>([])
+const availableContacts = ref<any[]>([])
 
+// ============================================================================
+// REACTIVE STATE - INTERNAL TRACKING
+// ============================================================================
+
+const swipeStates = ref<Record<string, { startX: number; currentX: number }>>({})
 const menuAlignment = ref<Record<string, 'left' | 'right'>>({})
 const menuPosition = ref<Record<string, { top: number; left: number; width: number }>>({})
 
-const { data: currentUser } = await useAsyncData(
-    'current-user',
-    () => apiFetch('/users/me')
-)
+// ============================================================================
+// COMPUTED PROPERTIES
+// ============================================================================
 
 const userId = computed(() => currentUser.value?.id)
 
-// Load conversation
-const { data: conversation } = await useAsyncData(
-    `conversation-${conversationId}`,
-    () => getConversation(conversationId)
-)
+const isCurrentUserAdmin = computed(() => {
+  if (!conversation.value || !userId.value) return false
+  const currentParticipant = conversation.value.participants.find(
+      (p: any) => p.userId === userId.value
+  )
+  return currentParticipant?.role === 'ADMIN'
+})
 
-// Load messages
-const { data: messages, refresh: refreshMessages } = await useAsyncData(
-    `messages-${conversationId}`,
-    () => getMessages(conversationId)
-)
+// ============================================================================
+// LIFECYCLE HOOKS
+// ============================================================================
 
-// Mark as read when conversation is loaded
 onMounted(async () => {
+  // Mark conversation as read
   try {
     await markAsRead(conversationId)
   } catch (error) {
     console.error('Failed to mark as read:', error)
   }
+
+  // Setup mobile detection
+  isMobile.value = 'ontouchstart' in window && window.innerWidth < 768
+  window.addEventListener('resize', () => {
+    isMobile.value = 'ontouchstart' in window && window.innerWidth < 768
+  })
+
+  // Setup Pusher for real-time updates
+  setupPusherListener()
 })
 
-// Message edition
+// ============================================================================
+// MESSAGE EDITING
+// ============================================================================
+
 const startEditMessage = (message: any) => {
   editingMessageId.value = message.id
   editingContent.value = message.content
-  swipedMessageId.value = null // Reset swipe
+  swipedMessageId.value = null
 }
 
 const cancelEditMessage = () => {
@@ -77,40 +126,39 @@ const cancelEditMessage = () => {
 }
 
 const saveEditMessage = async (messageId: string) => {
-  if (!editingContent.value.trim()) {
-    return
-  }
+  if (!editingContent.value.trim()) return
 
   try {
-    const result = await updateMessage(conversationId, messageId, editingContent.value)
-
+    await updateMessage(conversationId, messageId, editingContent.value)
     editingMessageId.value = null
     editingContent.value = ''
 
-    // Attends 500ms pour que Pusher propage l'événement
+    // Wait for Pusher to propagate
     await new Promise(resolve => setTimeout(resolve, 500))
     await refreshMessages()
   } catch (error) {
+    console.error('Failed to save message:', error)
   }
 }
 
 const confirmDeleteMessage = async (messageId: string) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
-    try {
-      const result = await deleteMessage(conversationId, messageId)
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) return
 
-      swipedMessageId.value = null
+  try {
+    await deleteMessage(conversationId, messageId)
+    swipedMessageId.value = null
 
-      // Attends 500ms pour que Pusher propage l'événement
-      await new Promise(resolve => setTimeout(resolve, 500))
-      await refreshMessages()
-    } catch (error) {
-    }
+    // Wait for Pusher to propagate
+    await new Promise(resolve => setTimeout(resolve, 500))
+    await refreshMessages()
+  } catch (error) {
+    console.error('Failed to delete message:', error)
   }
 }
 
-// Swipe handlers
-const swipeStates = ref<Record<string, { startX: number; currentX: number }>>({})
+// ============================================================================
+// MESSAGE SWIPE HANDLERS (MOBILE)
+// ============================================================================
 
 const getSwipeState = (messageId: string) => {
   if (!swipeStates.value[messageId]) {
@@ -118,6 +166,55 @@ const getSwipeState = (messageId: string) => {
   }
   return swipeStates.value[messageId]
 }
+
+const handleTouchStart = (e: TouchEvent, messageId: string) => {
+  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
+    swipedMessageId.value = null
+  }
+
+  const state = getSwipeState(messageId)
+  state.startX = e.touches[0].clientX
+  state.currentX = 0
+}
+
+const handleTouchMove = (e: TouchEvent, messageId: string) => {
+  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) return
+
+  const state = getSwipeState(messageId)
+  const diff = state.startX - e.touches[0].clientX
+
+  if (diff > 0 && diff < 100) {
+    state.currentX = diff
+  }
+}
+
+const handleTouchEnd = (e: TouchEvent, messageId: string) => {
+  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) return
+
+  e.stopPropagation()
+  const state = getSwipeState(messageId)
+
+  if (state.currentX > 50) {
+    swipedMessageId.value = messageId
+  } else {
+    swipedMessageId.value = null
+  }
+  state.currentX = 0
+}
+
+const getSwipeTransform = (messageId: string) => {
+  if (swipedMessageId.value !== messageId) return 'translateX(0)'
+
+  const state = getSwipeState(messageId)
+  if (state.currentX > 0) {
+    return `translateX(-${state.currentX}px)`
+  }
+  return 'translateX(-100px)'
+}
+
+// ============================================================================
+// MESSAGE MENU HANDLERS (DESKTOP)
+// ============================================================================
 
 const handleMessagesContainerClick = (e: Event) => {
   const target = e.target as HTMLElement
@@ -137,61 +234,6 @@ const handleMessagesContainerClick = (e: Event) => {
   }
 }
 
-const handleTouchStart = (e: TouchEvent, messageId: string) => {
-  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
-    swipedMessageId.value = null
-  }
-
-  const state = getSwipeState(messageId)
-  state.startX = e.touches[0].clientX
-  state.currentX = 0
-}
-
-const handleTouchMove = (e: TouchEvent, messageId: string) => {
-  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
-    return
-  }
-
-  const state = getSwipeState(messageId)
-  const diff = state.startX - e.touches[0].clientX
-
-  // Swipe to the left only (diff > 0) and max 100px
-  if (diff > 0 && diff < 100) {
-    state.currentX = diff
-  }
-}
-
-const handleTouchEnd = (e: TouchEvent, messageId: string) => {
-  if (swipedMessageId.value !== null && swipedMessageId.value !== messageId) {
-    return
-  }
-
-  e.stopPropagation()
-  const state = getSwipeState(messageId)
-
-  if (state.currentX > 50) {
-    swipedMessageId.value = messageId
-  } else {
-    swipedMessageId.value = null
-  }
-  state.currentX = 0
-}
-
-const getSwipeTransform = (messageId: string) => {
-  if (swipedMessageId.value !== messageId) {
-    return 'translateX(0)'
-  }
-
-  const state = getSwipeState(messageId)
-
-  if (state.currentX > 0) {
-    return `translateX(-${state.currentX}px)`
-  }
-
-  return 'translateX(-100px)'
-}
-
-// Desktop menu
 const calculateMenuAlignment = (messageId: string, element: HTMLElement) => {
   nextTick(() => {
     const button = element.querySelector('[data-menu-button]') as HTMLElement
@@ -201,14 +243,12 @@ const calculateMenuAlignment = (messageId: string, element: HTMLElement) => {
     const menuWidth = 160
     const padding = 20
 
-    // Position du bouton
     menuPosition.value[messageId] = {
       top: buttonRect.top,
       left: buttonRect.left,
       width: buttonRect.width,
     }
 
-    // Vérifie si sort du viewport
     const wouldExitRight = buttonRect.right + menuWidth + padding > window.innerWidth
     menuAlignment.value[messageId] = wouldExitRight ? 'right' : 'left'
   })
@@ -222,7 +262,7 @@ const getMenuStyle = (messageId: string) => {
 
   return {
     position: 'fixed' as const,
-    top: `${pos.top - 12}px`, // Au-dessus du bouton
+    top: `${pos.top - 12}px`,
     [isRight ? 'right' : 'left']: isRight
         ? `${window.innerWidth - (pos.left + pos.width)}px`
         : `${pos.left}px`,
@@ -230,7 +270,40 @@ const getMenuStyle = (messageId: string) => {
   }
 }
 
-// Header dropdown menu
+// ============================================================================
+// CONVERSATION MANAGEMENT - RENAME
+// ============================================================================
+
+const handleRenameConversation = () => {
+  renamingConversationName.value = conversation.value?.name || ''
+  isRenameModalOpen.value = true
+}
+
+const confirmRenameConversation = async (newName: string) => {
+  if (!newName.trim()) return
+
+  try {
+    await apiFetch(`/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: newName }),
+    })
+
+    if (conversation.value) {
+      conversation.value.name = newName
+    }
+
+    renamingConversationName.value = ''
+    isRenameModalOpen.value = false
+    headerMenuOpen.value = false
+  } catch (error) {
+    console.error('Failed to rename conversation:', error)
+  }
+}
+
+// ============================================================================
+// CONVERSATION MANAGEMENT - ADD PARTICIPANTS
+// ============================================================================
+
 const handleAddContact = async () => {
   try {
     const { data } = await useAsyncData('available-contacts', () =>
@@ -263,32 +336,9 @@ const confirmAddContacts = async () => {
   }
 }
 
-const handleRenameConversation = () => {
-  renamingConversationName.value = conversation.value?.name || ''
-  isRenameModalOpen.value = true
-}
-
-const confirmRenameConversation = async (newName: string) => {
-  if (!newName.trim()) return
-
-  try {
-    await apiFetch(`/conversations/${conversationId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ name: newName }),
-    })
-
-    // Update title locally
-    if (conversation.value) {
-      conversation.value.name = newName
-    }
-
-    renamingConversationName.value = ''
-    isRenameModalOpen.value = false
-    headerMenuOpen.value = false
-  } catch (error) {
-    console.error('Failed to rename conversation:', error)
-  }
-}
+// ============================================================================
+// CONVERSATION MANAGEMENT - DELETE/LEAVE
+// ============================================================================
 
 const handleDeleteConversation = () => {
   if (confirm('Êtes-vous sûr de vouloir supprimer cette conversation ?')) {
@@ -301,15 +351,56 @@ const deleteConversation = async () => {
     await apiFetch(`/conversations/${conversationId}`, {
       method: 'DELETE',
     })
-
-    // Retour à la liste des contacts
     navigateTo('/contacts')
   } catch (error) {
     console.error('Failed to delete conversation:', error)
   }
 }
 
-// Check if messages are more than 2 hours apart
+const leaveConversation = async () => {
+  try {
+    await apiFetch(`/conversations/${conversationId}`, {
+      method: 'DELETE',
+    })
+    navigateTo('/dashboard')
+  } catch (error) {
+    console.error('Failed to leave conversation:', error)
+  }
+}
+
+// ============================================================================
+// MESSAGE SENDING
+// ============================================================================
+
+const sendMessage = async () => {
+  if (!newMessage.value.trim()) return
+
+  loading.value = true
+  try {
+    await sendMsg({
+      content: newMessage.value,
+      conversationId,
+    })
+
+    newMessage.value = ''
+    await refreshMessages()
+
+    nextTick(() => {
+      if (messagesContainer.value) {
+        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      }
+    })
+  } catch (error) {
+    console.error('Failed to send message:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// ============================================================================
+// MESSAGE FORMATTING & GROUPING
+// ============================================================================
+
 const hasLongTimeDifference = (index: number) => {
   if (index === 0) return false
   const current = new Date(messages.value?.[index]?.createdAt)
@@ -318,14 +409,12 @@ const hasLongTimeDifference = (index: number) => {
   return diffInHours > 2
 }
 
-// Check if the expeditor is the same as the previous message's (time constraint)
 const isSameSenderAsPrevious = (index: number) => {
   if (index === 0) return false
   if (hasLongTimeDifference(index)) return false
   return messages.value?.[index - 1]?.senderId === messages.value?.[index]?.senderId
 }
 
-// Check if the expeditor is the same as the following message's
 const isSameSenderAsNext = (index: number) => {
   if (!messages.value || index === messages.value.length - 1) return false
   const current = new Date(messages.value[index].createdAt)
@@ -335,7 +424,6 @@ const isSameSenderAsNext = (index: number) => {
   return messages.value[index].senderId === messages.value[index + 1]?.senderId
 }
 
-// Check if date is different from today
 const shouldShowDateSeparator = (index: number) => {
   if (index === 0) return true
   const current = new Date(messages.value?.[index]?.createdAt)
@@ -343,7 +431,41 @@ const shouldShowDateSeparator = (index: number) => {
   return current.toDateString() !== previous.toDateString()
 }
 
-// Separator's date format
+const getMessagePosition = (index: number) => {
+  const samePrev = isSameSenderAsPrevious(index)
+  const sameNext = isSameSenderAsNext(index)
+
+  if (!samePrev && !sameNext) return 'single'
+  if (!samePrev && sameNext) return 'first'
+  if (samePrev && sameNext) return 'middle'
+  if (samePrev && !sameNext) return 'last'
+  return 'single'
+}
+
+const getBorderRadiusClass = (index: number, isOwn: boolean) => {
+  const position = getMessagePosition(index)
+
+  if (isOwn) {
+    switch (position) {
+      case 'single': return 'rounded-2xl rounded-br-md'
+      case 'first': return 'rounded-2xl rounded-br-md'
+      case 'middle': return 'rounded-l-2xl rounded-r-md'
+      case 'last': return 'rounded-l-2xl rounded-r-md'
+    }
+  } else {
+    switch (position) {
+      case 'single': return 'rounded-2xl rounded-bl-md'
+      case 'first': return 'rounded-2xl rounded-bl-md'
+      case 'middle': return 'rounded-r-2xl rounded-l-md'
+      case 'last': return 'rounded-r-2xl rounded-l-md'
+    }
+  }
+}
+
+const getMessageSpacing = (index: number) => {
+  return isSameSenderAsPrevious(index) ? 'mt-1' : 'mt-4'
+}
+
 const formatDateSeparator = (date: string) => {
   const messageDate = new Date(date)
   const today = new Date()
@@ -364,57 +486,43 @@ const formatDateSeparator = (date: string) => {
   }
 }
 
-// Set message's position in a group of messages
-const getMessagePosition = (index: number) => {
-  const samePrev = isSameSenderAsPrevious(index)
-  const sameNext = isSameSenderAsNext(index)
-
-  if (!samePrev && !sameNext) return 'single'
-  if (!samePrev && sameNext) return 'first'
-  if (samePrev && sameNext) return 'middle'
-  if (samePrev && !sameNext) return 'last'
-  return 'single'
-}
-
-// Border radius classes from position
-const getBorderRadiusClass = (index: number, isOwn: boolean) => {
-  const position = getMessagePosition(index)
-
-  if (isOwn) {
-    // Messages sent (right, blue)
-    switch (position) {
-      case 'single': return 'rounded-2xl rounded-br-md'
-      case 'first': return 'rounded-2xl rounded-br-md'
-      case 'middle': return 'rounded-l-2xl rounded-r-md'
-      case 'last': return 'rounded-l-2xl rounded-r-md'
-    }
-  } else {
-    // Messages received (left, gray)
-    switch (position) {
-      case 'single': return 'rounded-2xl rounded-bl-md'
-      case 'first': return 'rounded-2xl rounded-bl-md'
-      case 'middle': return 'rounded-r-2xl rounded-l-md'
-      case 'last': return 'rounded-r-2xl rounded-l-md'
-    }
-  }
-}
-
-// Space between messages
-const getMessageSpacing = (index: number) => {
-  return isSameSenderAsPrevious(index) ? 'mt-1' : 'mt-4'
-}
-
-// Listen to Pusher for new messages
-onMounted(() => {
-  const config = useRuntimeConfig()
-
-  // Detects mobile with touch support + screen size
-  isMobile.value = 'ontouchstart' in window && window.innerWidth < 768
-
-  // Update on resize
-  window.addEventListener('resize', () => {
-    isMobile.value = 'ontouchstart' in window && window.innerWidth < 768
+const formatTime = (date: string) => {
+  return new Date(date).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
   })
+}
+
+// ============================================================================
+// DISPLAY HELPERS
+// ============================================================================
+
+const getConversationName = () => {
+  if (!conversation.value) return 'Loading...'
+  if (!userId.value) return 'Loading...'
+
+  if (conversation.value?.name) return conversation.value.name
+  const otherParticipant = conversation.value?.participants?.find(
+      (p: any) => p.userId !== userId.value
+  )
+  return otherParticipant?.user?.username || otherParticipant?.user?.firstName || 'Unknown'
+}
+
+const getConversationAvatar = () => {
+  if (!conversation.value || !userId.value) return null
+
+  const otherParticipant = conversation.value?.participants?.find(
+      (p: any) => p.userId !== userId.value
+  )
+  return otherParticipant?.user?.imageUrl || null
+}
+
+// ============================================================================
+// PUSHER REAL-TIME LISTENER
+// ============================================================================
+
+const setupPusherListener = () => {
+  const config = useRuntimeConfig()
 
   const pusher = new Pusher(config.public.pusherKey, {
     cluster: config.public.pusherCluster || 'eu',
@@ -446,22 +554,18 @@ onMounted(() => {
     }
   })
 
-  channel.bind('message-deleted', (data: any) => {
+  channel.bind('message-deleted', ( data: any) => {
     if (messages.value) {
       messages.value = messages.value.filter((m: any) => m.id !== data.messageId)
     }
   })
 
-  // Cleanup
   onUnmounted(() => {
     try {
-      // Unbind all events from channel
       channel.unbind_all()
-      // Unsubscribe from channel
       channel.unsubscribe()
-    }
-
-    catch (error) {
+    } catch (error) {
+      // Ignore cleanup errors
     }
   })
 
@@ -470,86 +574,36 @@ onMounted(() => {
       messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
     }
   })
-})
-
-const getConversationName = () => {
-  if (!conversation.value) return 'Loading...'
-  if (!userId.value) return 'Loading...'
-
-  if (conversation.value?.name) return conversation.value.name
-  const otherParticipant = conversation.value?.participants?.find(
-      (p: any) => p.userId !== userId.value
-  )
-  return otherParticipant?.user?.username || otherParticipant?.user?.firstName || 'Unknown'
-}
-
-const getConversationAvatar = () => {
-  if (!conversation.value || !userId.value) return null
-
-  const otherParticipant = conversation.value?.participants?.find(
-      (p: any) => p.userId !== userId.value
-  )
-  return otherParticipant?.user?.imageUrl || null
-}
-
-const formatTime = (date: string) => {
-  return new Date(date).toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-const sendMessage = async () => {
-  if (!newMessage.value.trim()) return
-
-  loading.value = true
-  try {
-    await sendMsg({
-      content: newMessage.value,
-      conversationId,
-    })
-
-    newMessage.value = ''
-    await refreshMessages()
-
-    nextTick(() => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-      }
-    })
-  } catch (error) {
-    console.error('Failed to send message:', error)
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
 <template>
-  <div class="h-screen flex flex-col bg-gray-50">
+  <div class="h-screen flex flex-col bg-gray-900">
     <div v-if="!conversation" class="flex-1 flex items-center justify-center">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
     </div>
 
     <template v-else>
       <!-- Header -->
-      <div class="bg-white border-b px-4 py-3 flex items-center gap-3">
+      <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-4 py-3 flex items-center gap-3 z-20 relative">
         <UButton
             icon="i-heroicons-arrow-left"
             variant="ghost"
             size="sm"
-            @click="navigateTo('/contacts')"
+            color="slate"
+            @click="navigateTo('/dashboard')"
         />
         <UAvatar
             :src="getConversationAvatar()"
             :alt="getConversationName()"
             size="sm"
+            class="ring-1 ring-slate-700/50"
         />
         <div class="flex-1 min-w-0">
-          <h2 class="font-semibold text-sm truncate">
+          <h2 class="font-semibold text-sm text-white truncate">
             {{ getConversationName() }}
           </h2>
-          <p class="text-xs text-gray-500">Online</p>
+          <p class="text-xs text-slate-400">Online</p>
         </div>
 
         <div class="relative">
@@ -557,35 +611,50 @@ const sendMessage = async () => {
               icon="i-heroicons-ellipsis-vertical"
               variant="ghost"
               size="sm"
+              color="slate"
               @click="headerMenuOpen = !headerMenuOpen"
           />
           <div
               v-if="headerMenuOpen"
-              class="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+              class="absolute right-0 top-full mt-2 w-56 bg-slate-800 rounded-2xl shadow-lg border border-slate-700/50 p-1 z-50"
               @click="headerMenuOpen = false"
           >
-            <button
-                v-if="conversation?.isGroup"
-                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                @click="handleAddContact"
-            >
-              <UIcon name="i-heroicons-user-plus" class="w-4 h-4" />
-              Ajouter des contacts
-            </button>
-            <button
-                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                @click="handleRenameConversation"
-            >
-              <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
-              Renommer
-            </button>
-            <button
-                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-red-600"
-                @click="handleDeleteConversation"
-            >
-              <UIcon name="i-heroicons-trash" class="w-4 h-4" />
-              Supprimer
-            </button>
+            <!-- Admin menu -->
+            <template v-if="isCurrentUserAdmin">
+              <button
+                  v-if="conversation?.isGroup"
+                  class="w-full px-4 py-2 text-left text-sm hover:bg-slate-700/30 flex rounded-xl items-center gap-2 text-slate-300 hover:text-white transition"
+                  @click="handleAddContact"
+              >
+                <UIcon name="i-heroicons-user-plus" class="w-4 h-4" />
+                Add members
+              </button>
+              <button
+                  class="w-full px-4 py-2 text-left text-sm hover:bg-slate-700/30 flex rounded-xl items-center gap-2 text-slate-300 hover:text-white transition"
+                  @click="handleRenameConversation"
+              >
+                <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
+                Rename
+              </button>
+              <button
+                  class="w-full px-4 py-2 text-left text-sm hover:bg-slate-700/30 flex rounded-xl items-center gap-2 text-red-400 hover:text-red-300 transition"
+                  @click="handleDeleteConversation"
+              >
+                <UIcon name="i-heroicons-trash" class="w-4 h-4" />
+                Delete
+              </button>
+            </template>
+
+            <!-- User menu -->
+            <template v-else>
+              <button
+                  class="w-full px-4 py-2 text-left text-sm hover:bg-slate-700/30 flex rounded-xl items-center gap-2 text-red-400 hover:text-red-300 transition"
+                  @click="leaveConversation"
+              >
+                <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4" />
+                Leave chat
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -596,7 +665,7 @@ const sendMessage = async () => {
           class="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4"
           @click="handleMessagesContainerClick"
       >
-        <div v-if="!messages || messages.length === 0" class="text-center text-gray-500 py-12">
+        <div v-if="!messages || messages.length === 0" class="text-center text-slate-400 py-12">
           No messages yet. Start the conversation!
         </div>
 
@@ -606,7 +675,7 @@ const sendMessage = async () => {
                 v-if="shouldShowDateSeparator(index)"
                 class="flex justify-center my-6"
             >
-              <div class="bg-gray-300 text-gray-700 text-xs font-medium px-3 py-1 rounded-full">
+              <div class="bg-slate-800/50 text-slate-300 text-xs font-medium px-3 py-1 rounded-full border border-slate-700/30">
                 {{ formatDateSeparator(message.createdAt) }}
               </div>
             </div>
@@ -627,6 +696,7 @@ const sendMessage = async () => {
                       :src="message.sender?.imageUrl"
                       :alt="message.sender?.username"
                       size="xs"
+                      class="ring-1 ring-slate-700/50"
                   />
                 </div>
 
@@ -636,16 +706,16 @@ const sendMessage = async () => {
                 >
                   <p
                       v-if="message.senderId !== userId && !isSameSenderAsPrevious(index)"
-                      class="text-xs font-semibold text-gray-700 mb-1 px-2"
+                      class="text-xs font-semibold text-slate-400 mb-1 px-2"
                   >
                     {{ message.sender?.username || message.sender?.firstName }}
                   </p>
 
                   <div v-if="editingMessageId === message.id" class="flex flex-col gap-2 w-full">
-                    <UTextarea v-model="editingContent" :rows="2" autofocus class="w-full" />
+                    <UTextarea v-model="editingContent" :rows="2" autofocus class="w-full bg-slate-800/30 border border-slate-700/50 text-white" />
                     <div class="flex gap-2">
-                      <UButton size="xs" @click="saveEditMessage(message.id)">Sauvegarder</UButton>
-                      <UButton size="xs" color="gray" variant="ghost" @click="cancelEditMessage">Annuler</UButton>
+                      <UButton size="xs" color="purple" @click="saveEditMessage(message.id)">Save</UButton>
+                      <UButton size="xs" color="gray" variant="ghost" @click="cancelEditMessage">Cancel</UButton>
                     </div>
                   </div>
 
@@ -659,17 +729,17 @@ const sendMessage = async () => {
                     >
                       <button
                           data-action-button="edit"
-                          class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600"
+                          class="w-8 h-8 bg-amber-600 text-white rounded-full flex items-center justify-center transition"
                           @click.stop="startEditMessage(message)"
                       >
-                        <UIcon name="i-heroicons-pencil" class="w-5 h-5" />
+                        <UIcon name="i-heroicons-pencil" class="w-4 h-4" />
                       </button>
                       <button
                           data-action-button="delete"
-                          class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          class="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center transition"
                           @click.stop="confirmDeleteMessage(message.id)"
                       >
-                        <UIcon name="i-heroicons-trash" class="w-5 h-5" />
+                        <UIcon name="i-heroicons-trash" class="w-4 h-4" />
                       </button>
                     </div>
 
@@ -684,40 +754,39 @@ const sendMessage = async () => {
                         <div
                             v-if="messageMenuOpen === message.id"
                             :style="getMenuStyle(message.id)"
-                            class="bg-white rounded-lg shadow-lg border border-gray-200 py-2 px-2 flex gap-2"
+                            class="bg-slate-800 rounded-2xl shadow-lg border border-slate-700/50 p-1 flex gap-2 z-50"
                             data-menu-item
                         >
                           <button
-                              class="px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded whitespace-nowrap"
+                              class="px-2 py-1 text-xs hover:bg-slate-700/30 flex items-center justify-center gap-1 rounded-xl whitespace-nowrap text-slate-300 hover:text-white transition"
                               @click="startEditMessage(message)"
                           >
                             <UIcon name="i-heroicons-pencil" class="w-3 h-3" />
-                            Modifier
+                            Edit
                           </button>
                           <button
-                              class="px-2 py-1 text-xs hover:bg-gray-100 flex items-center justify-center gap-1 rounded text-red-600 whitespace-nowrap"
+                              class="px-2 py-1 text-xs hover:bg-slate-700/30 flex items-center justify-center gap-1 rounded-xl text-red-400 hover:text-red-300 whitespace-nowrap transition"
                               @click="confirmDeleteMessage(message.id)"
                           >
                             <UIcon name="i-heroicons-trash" class="w-3 h-3" />
-                            Supprimer
+                            Delete
                           </button>
                         </div>
                       </Teleport>
-
 
                       <!-- Button -->
                       <div v-if="!isMobile" class="relative">
                         <UButton
                             icon="i-heroicons-ellipsis-vertical"
                             size="2xs"
-                            color="gray"
+                            color="slate"
                             variant="ghost"
                             class="opacity-0 group-hover:opacity-100 transition-opacity"
                             data-menu-button
                             @click="(e) => {
-            calculateMenuAlignment(message.id, (e.target as HTMLElement).closest('.relative') || document.body)
-            messageMenuOpen = messageMenuOpen === message.id ? null : message.id
-          }"
+                              calculateMenuAlignment(message.id, (e.target as HTMLElement).closest('.relative') || document.body)
+                              messageMenuOpen = messageMenuOpen === message.id ? null : message.id
+                            }"
                         />
                       </div>
 
@@ -730,10 +799,10 @@ const sendMessage = async () => {
                       >
                         <div
                             :class="[
-          'px-4 py-2 shadow-sm w-full',
-          getBorderRadiusClass(index, true),
-          'bg-blue-600 text-white'
-        ]"
+                              'px-4 py-2 w-full',
+                              getBorderRadiusClass(index, true),
+                              'bg-blue-600/70 text-white shadow-sm'
+                            ]"
                             @click.stop
                         >
                           <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
@@ -742,14 +811,13 @@ const sendMessage = async () => {
                     </div>
                   </div>
 
-
                   <!-- Message received -->
                   <div v-else>
                     <div
                         :class="[
                           'px-4 py-2 shadow-sm',
                           getBorderRadiusClass(index, false),
-                          'bg-gray-200 text-gray-900'
+                          'bg-slate-800/40 text-slate-100 border border-slate-700/20'
                         ]"
                     >
                       <p class="text-sm whitespace-pre-wrap break-words">{{ message.content }}</p>
@@ -758,7 +826,7 @@ const sendMessage = async () => {
 
                   <p
                       v-if="!isSameSenderAsNext(index) && editingMessageId !== message.id"
-                      class="text-xs text-gray-500 mt-1 px-2"
+                      class="text-xs text-slate-500 mt-1 px-2"
                   >
                     {{ formatTime(message.createdAt) }}
                   </p>
@@ -770,25 +838,25 @@ const sendMessage = async () => {
       </div>
 
       <!-- Input -->
-      <div class="bg-white border-t px-4 py-3">
+      <div class="bg-slate-950/50 backdrop-blur border-t border-slate-800/30 px-4 py-3">
         <form @submit.prevent="sendMessage" class="flex items-center gap-2">
           <UButton
               icon="i-heroicons-plus"
               variant="ghost"
               size="sm"
-              color="gray"
+              color="slate"
           />
-          <UInput
+          <input
               v-model="newMessage"
               placeholder="Type a message..."
-              class="flex-1"
-              size="lg"
+              class="flex-1 bg-slate-800/30 border border-slate-700/50 text-white placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-600/50 transition"
               :disabled="loading"
           />
           <UButton
               type="submit"
               icon="i-heroicons-paper-airplane"
               size="sm"
+              color="purple"
               :disabled="!newMessage.trim() || loading"
               :loading="loading"
           />
@@ -797,91 +865,81 @@ const sendMessage = async () => {
     </template>
   </div>
 
-  <!-- Rename Conversation Popover -->
+  <!-- Rename Conversation Modal -->
   <div
       v-if="isRenameModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
       @click="isRenameModalOpen = false"
   >
-    <UCard
-        class="w-96"
+    <div
+        class="w-96 bg-slate-900 border border-slate-800/50 rounded-xl shadow-2xl"
         @click.stop
-        :ui="{ divide: 'divide-y divide-gray-100 dark:divide-gray-800' }"
     >
-      <template #header>
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-semibold leading-6 text-gray-900">
-            Renommer la conversation
-          </h3>
-          <UButton
-              color="gray"
-              variant="ghost"
-              icon="i-heroicons-x-mark-20-solid"
-              class="-my-1"
-              @click="isRenameModalOpen = false"
-          />
-        </div>
-      </template>
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800/30">
+        <h3 class="text-base font-semibold text-white">Rename Chat</h3>
+        <UButton
+            color="gray"
+            variant="ghost"
+            icon="i-heroicons-x-mark-20-solid"
+            class="-my-1"
+            @click="isRenameModalOpen = false"
+        />
+      </div>
 
-      <div class="space-y-4">
-        <UInput
+      <div class="px-6 py-4 space-y-4">
+        <input
             v-model="renamingConversationName"
-            placeholder="Nouveau nom..."
+            placeholder="New name..."
+            class="w-full bg-slate-800/30 border border-slate-700/50 text-white placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-600/50 transition"
             autofocus
         />
       </div>
 
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-              color="gray"
-              variant="ghost"
-              @click="isRenameModalOpen = false"
-          >
-            Annuler
-          </UButton>
-          <UButton
-              @click="confirmRenameConversation(renamingConversationName)"
-              :disabled="!renamingConversationName.trim()"
-          >
-            Renommer
-          </UButton>
-        </div>
-      </template>
-    </UCard>
+      <div class="flex justify-end gap-2 px-6 py-4 border-t border-slate-800/30">
+        <UButton
+            color="gray"
+            variant="ghost"
+            @click="isRenameModalOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+            color="purple"
+            @click="confirmRenameConversation(renamingConversationName)"
+            :disabled="!renamingConversationName.trim()"
+        >
+          Rename
+        </UButton>
+      </div>
+    </div>
   </div>
 
-  <!-- Add Contacts Popover -->
+  <!-- Add Contacts Modal -->
   <div
       v-if="isAddContactModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
       @click="isAddContactModalOpen = false"
   >
-    <UCard
-        class="w-96"
+    <div
+        class="w-96 bg-slate-900 border border-slate-800/50 rounded-xl shadow-2xl"
         @click.stop
-        :ui="{ divide: 'divide-y divide-gray-100 dark:divide-gray-800' }"
     >
-      <template #header>
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-semibold leading-6 text-gray-900">
-            Ajouter des contacts
-          </h3>
-          <UButton
-              color="gray"
-              variant="ghost"
-              icon="i-heroicons-x-mark-20-solid"
-              class="-my-1"
-              @click="isAddContactModalOpen = false"
-          />
-        </div>
-      </template>
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800/30">
+        <h3 class="text-base font-semibold text-white">Add Members</h3>
+        <UButton
+            color="gray"
+            variant="ghost"
+            icon="i-heroicons-x-mark-20-solid"
+            class="-my-1"
+            @click="isAddContactModalOpen = false"
+        />
+      </div>
 
-      <div class="space-y-3 max-h-96 overflow-y-auto">
+      <div class="px-6 py-4 space-y-3 max-h-96 overflow-y-auto">
         <div
             v-for="contact in availableContacts"
             :key="contact.id"
-            class="flex items-center gap-3 p-2 rounded hover:bg-gray-50"
+            class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800/30 transition"
         >
           <UCheckbox
               :model-value="selectedContactsToAdd.includes(contact.id)"
@@ -897,35 +955,35 @@ const sendMessage = async () => {
               :src="contact.imageUrl"
               :alt="contact.firstName"
               size="sm"
+              class="ring-1 ring-slate-700/50"
           />
           <div class="flex-1 min-w-0">
-            <p class="font-medium text-sm truncate">
+            <p class="font-medium text-sm text-white truncate">
               {{ contact.firstName }} {{ contact.lastName }}
             </p>
-            <p class="text-xs text-gray-500 truncate">
+            <p class="text-xs text-slate-400 truncate">
               {{ contact.email }}
             </p>
           </div>
         </div>
       </div>
 
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-              color="gray"
-              variant="ghost"
-              @click="isAddContactModalOpen = false"
-          >
-            Annuler
-          </UButton>
-          <UButton
-              @click="confirmAddContacts"
-              :disabled="selectedContactsToAdd.length === 0"
-          >
-            Ajouter ({{ selectedContactsToAdd.length }})
-          </UButton>
-        </div>
-      </template>
-    </UCard>
+      <div class="flex justify-end gap-2 px-6 py-4 border-t border-slate-800/30">
+        <UButton
+            color="gray"
+            variant="ghost"
+            @click="isAddContactModalOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+            color="purple"
+            @click="confirmAddContacts"
+            :disabled="selectedContactsToAdd.length === 0"
+        >
+          Add ({{ selectedContactsToAdd.length }})
+        </UButton>
+      </div>
+    </div>
   </div>
 </template>

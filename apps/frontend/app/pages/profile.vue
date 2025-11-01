@@ -175,44 +175,47 @@ const fullName = computed(() => {
 </script>
 
 <template>
-  <section class="p-6 max-w-xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">My Profile</h1>
-      <button
-          v-if="!editMode && profile"
-          @click="editMode = true"
-          class="text-sm text-blue-600 hover:text-blue-800"
-      >
-        Edit
-      </button>
+  <div class="min-h-screen bg-gray-900 pb-24">
+    <!-- Header -->
+    <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-6 py-4 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-white">Profile</h1>
+        <button
+            v-if="!editMode && profile"
+            @click="editMode = true"
+            class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/30 rounded-lg transition"
+        >
+          Edit
+        </button>
+      </div>
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading && !profile" class="flex justify-center py-8">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+    <div v-if="loading && !profile" class="flex justify-center items-center py-20">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
     </div>
 
     <!-- Profile Content -->
-    <div v-else-if="profile" class="space-y-6">
-      <!-- Profile Header -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <div v-else-if="profile" class="px-6 py-6 max-w-2xl mx-auto space-y-4">
+      <!-- Profile Header Card -->
+      <div class="bg-slate-800/20 border border-slate-700/20 rounded-3xl p-6">
         <div class="flex items-center gap-4">
           <img
               :src="profile.imageUrl"
               alt="Avatar"
-              class="w-20 h-20 rounded-full object-cover"
+              class="w-20 h-20 rounded-full object-cover ring-2 ring-slate-700/50"
           />
           <div class="flex-1">
-            <h2 class="text-xl font-semibold">{{ fullName }}</h2>
-            <p class="text-gray-600 dark:text-gray-400">{{ profile.email }}</p>
+            <h2 class="text-xl font-semibold text-white">{{ fullName }}</h2>
+            <p class="text-slate-400">{{ profile.email }}</p>
             <div class="flex items-center gap-2 mt-2">
               <span
-                  class="inline-flex items-center gap-1.5 text-xs"
-                  :class="profile.isOnline ? 'text-green-600' : 'text-gray-500'"
+                  class="inline-flex items-center gap-1.5 text-xs font-medium"
+                  :class="profile.isOnline ? 'text-emerald-400' : 'text-slate-500'"
               >
                 <span
                     class="w-2 h-2 rounded-full"
-                    :class="profile.isOnline ? 'bg-green-600' : 'bg-gray-400'"
+                    :class="profile.isOnline ? 'bg-emerald-400' : 'bg-slate-600'"
                 />
                 {{ profile.isOnline ? 'Online' : 'Offline' }}
               </span>
@@ -222,32 +225,25 @@ const fullName = computed(() => {
       </div>
 
       <!-- Basic Information Card -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold mb-4">Basic Information</h3>
+      <div class="bg-slate-800/20 border border-slate-700/20 rounded-3xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">Basic Information</h3>
 
         <!-- View Mode -->
-        <div v-if="!editMode" class="space-y-3">
+        <div v-if="!editMode" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              First Name
-            </label>
-            <p class="text-base">{{ profile.firstName || 'Not set' }}</p>
+            <label class="block text-sm font-medium text-slate-400 mb-1">First Name</label>
+            <p class="text-base text-white">{{ profile.firstName || 'Not set' }}</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Last Name
-            </label>
-            <p class="text-base">{{ profile.lastName || 'Not set' }}</p>
+            <label class="block text-sm font-medium text-slate-400 mb-1">Last Name</label>
+            <p class="text-base text-white">{{ profile.lastName || 'Not set' }}</p>
           </div>
         </div>
 
         <!-- Edit Mode -->
-        <form v-else @submit.prevent="onSubmit({ data: formState })" class="space-y-4">
+        <form v-else @submit.prevent="onSubmit({  formState })" class="space-y-4">
           <div>
-            <label
-                for="firstName"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
+            <label for="firstName" class="block text-sm font-medium text-slate-300 mb-2">
               First Name *
             </label>
             <input
@@ -255,16 +251,13 @@ const fullName = computed(() => {
                 v-model="formState.firstName"
                 type="text"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                class="w-full bg-slate-800/30 border border-slate-700/50 text-white placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-600/50 transition"
                 placeholder="Enter your first name"
             />
           </div>
 
           <div>
-            <label
-                for="lastName"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
+            <label for="lastName" class="block text-sm font-medium text-slate-300 mb-2">
               Last Name *
             </label>
             <input
@@ -272,7 +265,7 @@ const fullName = computed(() => {
                 v-model="formState.lastName"
                 type="text"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                class="w-full bg-slate-800/30 border border-slate-700/50 text-white placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-600/50 transition"
                 placeholder="Enter your last name"
             />
           </div>
@@ -281,14 +274,14 @@ const fullName = computed(() => {
             <button
                 type="submit"
                 :disabled="loading"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition"
             >
               {{ loading ? 'Saving...' : 'Save Changes' }}
             </button>
             <button
                 type="button"
                 @click="cancelEdit"
-                class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                class="px-4 py-2 bg-slate-800/30 hover:bg-slate-800/50 text-slate-300 font-medium rounded-lg transition"
             >
               Cancel
             </button>
@@ -297,30 +290,26 @@ const fullName = computed(() => {
       </div>
 
       <!-- Account Settings Card -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold mb-4">Account Settings</h3>
+      <div class="bg-slate-800/20 border border-slate-700/20 rounded-3xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">Account Settings</h3>
 
-        <div class="space-y-3">
+        <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email Address
-            </label>
-            <p class="text-base">{{ profile.email }}</p>
+            <label class="block text-sm font-medium text-slate-400 mb-1">Email Address</label>
+            <p class="text-base text-white">{{ profile.email }}</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Username
-            </label>
-            <p class="text-base">{{ profile.username || 'Not set' }}</p>
+            <label class="block text-sm font-medium text-slate-400 mb-1">Username</label>
+            <p class="text-base text-white">{{ profile.username || 'Not set' }}</p>
           </div>
 
-          <div class="border-t pt-4 mt-4">
-            <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          <div class="border-t border-slate-700/30 pt-4 mt-4">
+            <p class="text-sm text-slate-400 mb-3">
               To update your email, username, password, or security settings, use Clerk's profile management.
             </p>
             <button
                 @click="openClerkSettings"
-                class="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
+                class="px-4 py-2 bg-slate-800/50 hover:bg-slate-800/70 text-white font-medium rounded-lg transition"
             >
               Open Clerk Settings
             </button>
@@ -329,38 +318,39 @@ const fullName = computed(() => {
       </div>
 
       <!-- Account Info Card -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold mb-4">Account Information</h3>
+      <div class="bg-slate-800/20 border border-slate-700/20 rounded-3xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">Account Information</h3>
 
-        <div class="space-y-2 text-sm">
+        <div class="space-y-3 text-sm">
           <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">Account Created</span>
-            <span class="font-medium">
+            <span class="text-slate-400">Account Created</span>
+            <span class="font-medium text-white">
               {{ new Date(profile.createdAt).toLocaleDateString() }}
             </span>
           </div>
           <div class="flex justify-between">
-            <span class="text-gray-600 dark:text-gray-400">Last Seen</span>
-            <span class="font-medium">
+            <span class="text-slate-400">Last Seen</span>
+            <span class="font-medium text-white">
               {{ new Date(profile.lastSeenAt).toLocaleString() }}
             </span>
           </div>
         </div>
       </div>
 
-      <!-- Pusher Events Card (Debug) -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold mb-4">Real-time Events</h3>
-        <ul v-if="contactStatusUpdates.length > 0" class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-          <li v-for="update in contactStatusUpdates" :key="update.userId">
-            👁️ {{ update.userId }} → {{ update.isOnline ? 'online' : 'offline' }}
+      <!-- Real-time Events Card -->
+      <div class="bg-slate-800/20 border border-slate-700/20 rounded-3xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">Real-time Events</h3>
+        <ul v-if="contactStatusUpdates.length > 0" class="space-y-2 text-sm text-slate-400">
+          <li v-for="update in contactStatusUpdates" :key="update.userId" class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full" :class="update.isOnline ? 'bg-emerald-400' : 'bg-slate-600'" />
+            {{ update.userId }} → {{ update.isOnline ? 'online' : 'offline' }}
           </li>
         </ul>
-        <p v-else class="text-sm text-gray-500">No recent events</p>
+        <p v-else class="text-sm text-slate-500">No recent events</p>
       </div>
     </div>
-  </section>
 
-  <!-- Bottom Navigation -->
-  <BottomMenu active="profile" />
+    <!-- Bottom Navigation -->
+    <BottomMenu active="profile" />
+  </div>
 </template>
