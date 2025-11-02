@@ -26,21 +26,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check Prisma schema
+      - name: Setup environment
         run: |
-          ls -la apps/backend/prisma/
-          cat apps/backend/prisma/schema.prisma | head -20
+          cd apps/backend
+          cat > .env << EOF
+          DATABASE_URL="file:./dev.db"
+          CLERK_SECRET_KEY="${{ secrets.CLERK_SECRET_KEY }}"
+          CLERK_WEBHOOK_SECRET="${{ secrets.CLERK_WEBHOOK_SECRET }}"
+          PUSHER_APP_ID="${{ secrets.PUSHER_APP_ID }}"
+          PUSHER_KEY="${{ secrets.PUSHER_KEY }}"
+          PUSHER_SECRET="${{ secrets.PUSHER_SECRET }}"
+          PUSHER_CLUSTER="${{ vars.PUSHER_CLUSTER }}"
+          NODE_ENV="test"
+          EOF
+          echo "✅ .env created"
+
+      - name: Run Prisma migrations
+        run: |
+          cd apps/backend
+          pnpm prisma db push --skip-generate
+          echo "✅ Database schema synced"
 
       - name: Generate Prisma Client
         run: |
           cd apps/backend
-          pnpm prisma generate --verbose
-          ls -la node_modules/.prisma/client/ || echo "Prisma client not found"
+          pnpm prisma generate
+          echo "✅ Prisma generated successfully"
 
       - name: Build backend
         run: pnpm --filter backend build
-        env:
-          NODE_ENV: production
 
       - name: Backend test
         run: pnpm --filter backend test
@@ -51,27 +65,15 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.17.1
-
-      - name: Node.js setup
-        uses: actions/setup-node@v5
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Debug secrets
+      - name: Debug info
         run: |
           echo "Host: ${{ vars.VPS_HOST }}"
           echo "User: ${{ vars.VPS_USER }}"
-          echo "Path: ${{ vars.VPS_PROJECT_PATH }}"
           echo "SSH Key present: ${{ secrets.SSH_PRIVATE_KEY != '' }}"
 
       - name: Deploy to VPS
@@ -83,19 +85,28 @@ jobs:
           port: 22
           timeout: 60s
           command_timeout: 10m
-          fingerprint: ''
           script: |
             export TERM=xterm
             cd ${{ vars.VPS_PROJECT_PATH }}
+            
+            # Backup DB before deployment
+            cp apps/backend/prisma/dev.db apps/backend/prisma/dev.db.backup 2>/dev/null || true
+            
+            # Pull latest code
             git pull origin master
             
-            cd apps/backend
-            pnpm prisma generate
-            cd ../..
-            
+            # Restart containers
             docker compose down --volumes
             docker compose up -d --build
             
-            sleep 10
+            # Wait for services to be ready
+            sleep 15
+            
+            # Run migrations on production
+            docker compose exec -T backend pnpm prisma db push --skip-generate
+            
+            # Check deployment status
             docker ps --filter "name=echo" --format "table {{.Names}}\t{{.Status}}"
             docker system prune -f
+            
+            echo "✅ Deployment successful!"
