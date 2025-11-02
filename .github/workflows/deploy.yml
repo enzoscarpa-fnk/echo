@@ -24,13 +24,23 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Prisma schema
+        run: |
+          ls -la apps/backend/prisma/
+          cat apps/backend/prisma/schema.prisma | head -20
 
       - name: Generate Prisma Client
-        run: pnpm --filter backend prisma generate
+        run: |
+          cd apps/backend
+          pnpm prisma generate --verbose
+          ls -la node_modules/.prisma/client/ || echo "Prisma client not found"
 
       - name: Build backend
         run: pnpm --filter backend build
+        env:
+          NODE_ENV: production
 
       - name: Backend test
         run: pnpm --filter backend test
@@ -46,14 +56,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+
+      - name: Node.js setup
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
       - name: Debug secrets
         run: |
           echo "Host: ${{ vars.VPS_HOST }}"
           echo "User: ${{ vars.VPS_USER }}"
           echo "Path: ${{ vars.VPS_PROJECT_PATH }}"
           echo "SSH Key present: ${{ secrets.SSH_PRIVATE_KEY != '' }}"
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v0.1.5
@@ -69,12 +88,14 @@ jobs:
             export TERM=xterm
             cd ${{ vars.VPS_PROJECT_PATH }}
             git pull origin master
+            
+            cd apps/backend
+            pnpm prisma generate
+            cd ../..
+            
             docker compose down --volumes
             docker compose up -d --build
             
-            # Check containers are UP
             sleep 10
             docker ps --filter "name=echo" --format "table {{.Names}}\t{{.Status}}"
-            
-            # Clean unused images
             docker system prune -f
