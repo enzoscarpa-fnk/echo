@@ -54,6 +54,7 @@ const isAddContactModalOpen = ref(false)
 const newMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref<HTMLElement>()
+const messageInput = ref<HTMLInputElement>()
 
 const editingMessageId = ref<string | null>(null)
 const editingContent = ref('')
@@ -116,13 +117,21 @@ onMounted(async () => {
 
 const startEditMessage = (message: any) => {
   editingMessageId.value = message.id
-  editingContent.value = message.content
+  newMessage.value = message.content
   swipedMessageId.value = null
+
+  nextTick(() => {
+    messageInput.value?.focus()
+    messageInput.value?.setSelectionRange(
+        messageInput.value.value.length,
+        messageInput.value.value.length
+    )
+  })
 }
 
 const cancelEditMessage = () => {
   editingMessageId.value = null
-  editingContent.value = ''
+  newMessage.value = ''
 }
 
 const saveEditMessage = async (messageId: string) => {
@@ -377,21 +386,30 @@ const sendMessage = async () => {
 
   loading.value = true
   try {
-    await sendMsg({
-      content: newMessage.value,
-      conversationId,
-    })
+    if (editingMessageId.value) {
+      await updateMessage(conversationId, editingMessageId.value, newMessage.value)
+      editingMessageId.value = null
+      newMessage.value = ''
 
-    newMessage.value = ''
-    await refreshMessages()
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await refreshMessages()
+    } else {
+      await sendMsg({
+        content: newMessage.value,
+        conversationId,
+      })
 
-    nextTick(() => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-      }
-    })
+      newMessage.value = ''
+      await refreshMessages()
+
+      nextTick(() => {
+        if (messagesContainer.value) {
+          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+        }
+      })
+    }
   } catch (error) {
-    console.error('Failed to send message:', error)
+    console.error('Failed to send/edit message:', error)
   } finally {
     loading.value = false
   }
@@ -711,16 +729,8 @@ const setupPusherListener = () => {
                     {{ message.sender?.username || message.sender?.firstName }}
                   </p>
 
-                  <div v-if="editingMessageId === message.id" class="flex flex-col gap-2 w-full">
-                    <UTextarea v-model="editingContent" :rows="2" autofocus class="w-full bg-slate-800/30 border border-slate-700/50 text-white" />
-                    <div class="flex gap-2">
-                      <UButton size="xs" color="purple" @click="saveEditMessage(message.id)">Save</UButton>
-                      <UButton size="xs" color="gray" variant="ghost" @click="cancelEditMessage">Cancel</UButton>
-                    </div>
-                  </div>
-
                   <!-- Message sent -->
-                  <div v-else-if="message.senderId === userId" class="relative w-full">
+                  <div v-if="message.senderId === userId" class="relative w-full">
                     <!-- Mobile: swipe actions -->
                     <div
                         v-if="isMobile"
@@ -839,6 +849,16 @@ const setupPusherListener = () => {
 
       <!-- Input -->
       <div class="bg-slate-950/50 backdrop-blur border-t border-slate-800/30 px-4 py-3">
+        <div v-if="editingMessageId" class="flex items-center justify-between mb-2 px-2">
+          <span class="text-xs text-amber-400 font-medium">Editing message...</span>
+          <button
+              @click="cancelEditMessage"
+              class="text-xs text-slate-400 hover:text-white transition"
+          >
+            Cancel
+          </button>
+        </div>
+
         <form @submit.prevent="sendMessage" class="flex items-center gap-2">
           <UButton
               icon="i-heroicons-plus"
@@ -847,16 +867,17 @@ const setupPusherListener = () => {
               color="slate"
           />
           <input
+              ref="messageInput"
               v-model="newMessage"
-              placeholder="Type a message..."
+              :placeholder="editingMessageId ? 'Edit your message...' : 'Type a message...'"
               class="flex-1 bg-slate-800/30 border border-slate-700/50 text-white placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-600/50 transition"
               :disabled="loading"
           />
           <UButton
               type="submit"
-              icon="i-heroicons-paper-airplane"
+              :icon="editingMessageId ? 'i-heroicons-check' : 'i-heroicons-paper-airplane'"
               size="sm"
-              color="purple"
+              :color="editingMessageId ? 'amber' : 'purple'"
               :disabled="!newMessage.trim() || loading"
               :loading="loading"
           />

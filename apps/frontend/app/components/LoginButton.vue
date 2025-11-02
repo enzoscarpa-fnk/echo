@@ -11,7 +11,7 @@ const openSignIn = () => {
 
 <template>
   <button
-      class="rounded-full my-4 px-3 py-1 bg-cyan-900 border-2 border-teal-400 text-teal-400 font-bold"
+      class="rounded-full my-4 px-3 py-1 bg-sky-900/80 border-2 border-cyan-700 text-teal-300 font-bold"
       @click="openSignIn"
       :disabled="!isLoaded"
   >

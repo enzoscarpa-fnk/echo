@@ -189,7 +189,6 @@ const formatTime = (date: string) => {
     <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-6 py-4 sticky top-0 z-10">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-white">Chats</h1>
-        <!-- ✅ Bouton groupe, plus grand -->
         <UButton
             icon="i-heroicons-users"
             size="lg"

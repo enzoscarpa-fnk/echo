@@ -194,9 +194,11 @@ const handleCancel = async (contactId) => {
 
 <template>
   <div class="min-h-screen bg-gray-900 pb-24">
-    <!-- Header with Title -->
-    <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-6 py-4 sticky top-0 z-10">
-      <h1 class="text-2xl font-bold text-white">Contacts</h1>
+    <!-- Header -->
+    <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-6 py-4.5 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-white">Contacts</h1>
+      </div>
     </div>
 
     <!-- Floating Tab Switch -->

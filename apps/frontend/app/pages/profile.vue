@@ -21,11 +21,6 @@ const formState = reactive({
 
 // Debug
 onMounted(() => {
-  console.log('🔍 isLoaded:', isLoaded.value)
-  console.log('🔍 isSignedIn:', isSignedIn.value)
-  console.log('🔍 userId:', userId.value)
-  console.log('🔍 sessionId:', sessionId.value)
-  console.log('🔍 sessionClaims:', sessionClaims.value)
 })
 
 // Get token from __clerk_session cookie directly
@@ -45,36 +40,29 @@ const getClerkToken = async () => {
 // Fetch profile
 const fetchProfile = async () => {
   try {
-    console.log('📡 fetchProfile called')
     loading.value = true
 
     if (!isLoaded.value) {
-      console.warn('⚠️ Not loaded')
       loading.value = false
       return
     }
 
     if (!isSignedIn.value) {
-      console.warn('⚠️ Not signed in')
       loading.value = false
       return
     }
-
-    console.log('✅ Calling API (using cookies for auth)')
 
     // Call API - Clerk cookie will be sent automatically
     const data = await $fetch('/api/users/me', {
       credentials: 'include', // Include cookies
     })
 
-    console.log('✅ API response:', data)
     profile.value = data
     formState.firstName = data?.firstName || ''
     formState.lastName = data?.lastName || ''
 
-    console.log('✅ Profile loaded')
   } catch (error) {
-    console.error('❌ Error:', error)
+    console.error('Error:', error)
   } finally {
     loading.value = false
   }
@@ -84,10 +72,8 @@ const fetchProfile = async () => {
 watch(
     [() => isLoaded.value, () => isSignedIn.value],
     ([loaded, signedIn]) => {
-      console.log('👀 Watch:', { loaded, signedIn })
 
       if (loaded && signedIn) {
-        console.log('🎉 Ready!')
         fetchProfile()
       }
     },
@@ -137,7 +123,7 @@ const onSubmit = async (event: FormSubmitEvent<typeof formState>) => {
   try {
     loading.value = true
 
-    // ✅ Use cookie-based auth
+    // Use cookie-based auth
     const data = await $fetch('/api/users/me', {
       method: 'PATCH',
       credentials: 'include',
@@ -146,9 +132,8 @@ const onSubmit = async (event: FormSubmitEvent<typeof formState>) => {
 
     profile.value = data
     editMode.value = false
-    console.log('✅ Profile updated')
   } catch (error) {
-    console.error('❌ Update error:', error)
+    console.error('Update error:', error)
   } finally {
     loading.value = false
   }
@@ -177,13 +162,13 @@ const fullName = computed(() => {
 <template>
   <div class="min-h-screen bg-gray-900 pb-24">
     <!-- Header -->
-    <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-6 py-4 sticky top-0 z-10">
+    <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-6 py-4.5 sticky top-0 z-10">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-white">Profile</h1>
         <button
             v-if="!editMode && profile"
             @click="editMode = true"
-            class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/30 rounded-lg transition"
+            class="px-4 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/30 rounded-lg transition"
         >
           Edit
         </button>

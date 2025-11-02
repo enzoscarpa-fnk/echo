@@ -34,8 +34,6 @@ export function usePusher(
         ? `private-user-${channelId}`
         : `conversation-${channelId}`
 
-    console.log('📡 Subscribing to:', channelName)
-
     // Subscribe to channel
     const channel = ref(pusher.subscribe(channelName))
 
@@ -46,18 +44,15 @@ export function usePusher(
     // Bind events based on channel type
     if (channelType === 'user') {
         channel.value.bind('contact-status-changed', (data: any) => {
-            console.log('👤 Contact status changed:', data)
             contactStatusUpdates.value.push(data)
         })
     } else if (channelType === 'conversation') {
         channel.value.bind('new-message', (data: any) => {
-            console.log('💬 New message:', data)
             newMessages.value.push(data)
         })
     }
 
     const cleanup = () => {
-        console.log('🧹 Cleaning up Pusher connection:', channelName)
         channel.value.unbind_all()
         pusher.unsubscribe(channelName)
         pusher.disconnect()
