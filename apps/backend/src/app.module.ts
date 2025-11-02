@@ -1,27 +1,34 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { PassportModule } from '@nestjs/passport';
-import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { MessagesController } from './messages/messages.controller';
-import { MessagesService } from './messages/messages.service';
+import { PassportModule } from '@nestjs/passport';
+import { PrismaModule } from './database/prisma.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { ConversationsModule } from './conversations/conversations.module';
+import { ContactsModule } from './contacts/contacts.module';
+import { MessagesModule } from './messages/messages.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { PusherModule } from "./pusher/pusher.module";
 
 @Module({
     imports: [
         ConfigModule.forRoot({
             isGlobal: true,
+            envFilePath: '.env',
         }),
-        PassportModule,
+        PassportModule.register({ defaultStrategy: 'clerk' }),
+        PrismaModule,
         AuthModule,
+        UsersModule,
+        ConversationsModule,
+        ContactsModule,
+        MessagesModule,
+        WebhooksModule,
+        PusherModule,
     ],
-    controllers: [
-        AppController,
-        MessagesController,
-    ],
-    providers: [
-        AppService,
-        MessagesService,
-    ],
+    controllers: [AppController],
+    providers: [AppService],
 })
 export class AppModule {}
