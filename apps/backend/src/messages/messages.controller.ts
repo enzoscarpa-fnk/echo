@@ -65,7 +65,11 @@ export class MessagesController {
      * Get a specific message
      */
     @Get(':id')
-    async findOne(@Param('id') id: string, @Req() req: any) {
+    async findOne(
+        @Param('conversationId') conversationId: string,
+        @Param('id') id: string,
+        @Req() req: any,
+    ) {
         return this.messagesService.findOne(id, req.user.id);
     }
 
@@ -75,6 +79,7 @@ export class MessagesController {
      */
     @Patch(':id')
     async update(
+        @Param('conversationId') conversationId: string,
         @Param('id') id: string,
         @Req() req: any,
         @Body() updateMessageDto: UpdateMessageDto,
@@ -87,7 +92,11 @@ export class MessagesController {
      * Delete a message
      */
     @Delete(':id')
-    async remove(@Param('id') id: string, @Req() req: any) {
-        return this.messagesService.remove(id, req.user.id);
+    async remove(
+        @Param('conversationId') conversationId: string,
+        @Param('id') id: string,
+        @Req() req: any,
+    ) {
+        return this.messagesService.remove(id, req.user.id)
     }
 }

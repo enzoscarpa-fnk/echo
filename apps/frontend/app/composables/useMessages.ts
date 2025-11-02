@@ -23,9 +23,24 @@ export const useMessages = () => {
         })
     }
 
+    const updateMessage = async (conversationId: string, messageId: string, content: string) => {
+        return await apiFetch(`/conversations/${conversationId}/messages/${messageId}`, {
+            method: 'PATCH',
+            body: { content }
+        })
+    }
+
+    const deleteMessage = async (conversationId: string, messageId: string) => {
+        return await apiFetch(`/conversations/${conversationId}/messages/${messageId}`, {
+            method: 'DELETE'
+        })
+    }
+
     return {
         getMessages,
         sendMessage,
+        updateMessage,
+        deleteMessage,
         markAsRead,
     }
 }

@@ -193,135 +193,198 @@ const handleCancel = async (contactId) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 pb-20">
-    <!-- Tabs -->
-    <div class="flex border-b bg-white sticky top-0 z-10">
-      <button
-          :class="['flex-1 py-4 text-center font-medium transition', selectedTab === 'contacts' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500']"
-          @click="selectedTab = 'contacts'"
-      >Contacts</button>
-      <button
-          :class="['flex-1 py-4 text-center font-medium transition', selectedTab === 'requests' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-gray-500']"
-          @click="selectedTab = 'requests'"
-      >Requests</button>
+  <div class="min-h-screen bg-gray-900 pb-24">
+    <!-- Header -->
+    <div class="bg-slate-950/50 backdrop-blur border-b border-slate-800/30 px-6 py-4.5 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-white">Contacts</h1>
+      </div>
     </div>
 
-    <!-- Tab: Contacts -->
-    <!-- Combobox -->
-    <div class="mb-4 flex flex-col gap-2">
+    <!-- Floating Tab Switch -->
+    <div class="px-6 py-4">
+      <div class="bg-slate-800/40 backdrop-blur-xl border border-slate-700/30 rounded-2xl px-1 py-1 inline-flex gap-1 w-fit mx-auto">
+        <button
+            :class="[
+              'flex-1 px-4 py-1.5 rounded-xl text-xs font-medium transition-all',
+              selectedTab === 'contacts'
+                ? 'bg-slate-700/40 text-purple-300'
+                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/20'
+            ]"
+            @click="selectedTab = 'contacts'"
+        >
+          Contacts
+        </button>
+        <button
+            :class="[
+              'flex-1 px-4 py-1.5 rounded-xl text-xs font-medium transition-all',
+              selectedTab === 'requests'
+                ? 'bg-slate-700/40 text-purple-300'
+                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/20'
+            ]"
+            @click="selectedTab = 'requests'"
+        >
+          Requests
+        </button>
+      </div>
+    </div>
+
+    <!-- Search Input -->
+    <div class="px-6 pb-4 relative">
       <input
           v-model="searchQuery"
           type="text"
-          class="rounded shadow-sm border border-neutral-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full text-neutral-800"
+          class="w-full bg-slate-800/30 border border-slate-700/50 text-white placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-600/50 transition"
           placeholder="Search users by name, email, username..."
           @input="onSearchInput"
           @blur="showDropdown = false"
           @focus="showDropdown = !!searchDropdown.length"
       />
+
+      <!-- Search Dropdown -->
       <div
           v-if="searchDropdown.length > 0 && showDropdown"
-          class="bg-white border shadow rounded w-full max-h-60 overflow-auto absolute z-50 mt-12"
+          class="absolute top-full left-6 right-6 mt-2 bg-slate-800/90 border border-slate-700/50 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50"
       >
-        <div
+        <button
             v-for="user in searchDropdown"
             :key="user.id"
-            class="flex items-center p-2 hover:bg-blue-50 cursor-pointer border-b last:border-0"
+            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700/30 border-b border-slate-700/30 last:border-b-0 transition text-left"
+            @mousedown.prevent="addUser(user)"
         >
-          <img :src="user.imageUrl" class="w-8 h-8 rounded-full" />
-          <div class="flex-1 ml-2 min-w-0">
-            <div class="font-medium truncate">{{ getDisplayName(user) }}</div>
-            <div class="text-xs text-gray-400 truncate">{{ user.email }}</div>
+          <img :src="user.imageUrl" class="w-8 h-8 rounded-full object-cover ring-1 ring-slate-700/50" />
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-white truncate">{{ getDisplayName(user) }}</div>
+            <div class="text-xs text-slate-400 truncate">{{ user.email }}</div>
           </div>
           <button
-              class="bg-blue-100 text-blue-600 px-3 py-1 rounded text-xs cursor-pointer"
-              @mousedown.prevent="addUser(user)"
+              class="px-3 py-1 bg-purple-600/20 text-purple-300 hover:bg-purple-600/40 rounded text-xs font-medium whitespace-nowrap transition"
               :disabled="addUserLoading[user.id]"
           >
             {{ addUserLoading[user.id] ? 'Adding...' : 'Add' }}
           </button>
-        </div>
+        </button>
       </div>
     </div>
 
-    <div v-if="selectedTab === 'contacts'" class="px-6 py-4 space-y-6">
-      <div v-if="loading && contacts.length === 0" class="text-center py-6">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-2"></div>
-        Loading contacts...
+    <!-- Tab: Contacts -->
+    <div v-if="selectedTab === 'contacts'" class="px-6 py-4">
+      <div v-if="loading && contacts.length === 0" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
       </div>
-      <div v-else-if="contacts.length === 0" class="text-center text-gray-500 py-8">
+
+      <div v-else-if="contacts.length === 0" class="text-center text-slate-400 py-12">
         You have no contacts yet.
       </div>
-      <div v-else class="divide-y">
-        <div
+
+      <div v-else class="space-y-2">
+        <button
             v-for="contact in contacts"
             :key="contact.id"
-            class="flex items-center py-4 gap-4 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
+            class="w-full bg-slate-800/20 hover:bg-slate-800/40 border border-slate-700/20 hover:border-slate-600/40 rounded-3xl px-4 py-3 transition-all duration-200 text-left"
             @click="startChat(contact)"
         >
-          <img :src="contact.imageUrl" class="w-12 h-12 rounded-full object-cover" />
-          <div class="flex-1 min-w-0">
-            <div class="font-semibold">{{ getDisplayName(contact) }}</div>
-            <div class="text-xs text-gray-500">last seen: {{ formatLastSeen(contact.lastSeenAt) }}</div>
+          <div class="flex items-center gap-3">
+            <img :src="contact.imageUrl" class="w-12 h-12 rounded-full object-cover ring-1 ring-slate-700/50" />
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-white">{{ getDisplayName(contact) }}</div>
+              <div class="text-xs text-slate-500">last seen: {{ formatLastSeen(contact.lastSeenAt) }}</div>
+            </div>
+            <span
+                :class="[
+                  'px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap',
+                  contact.isOnline
+                    ? 'bg-emerald-400/20 text-emerald-300'
+                    : 'bg-slate-700/30 text-slate-400'
+                ]"
+            >
+              {{ contact.isOnline ? 'Online' : 'Offline' }}
+            </span>
           </div>
-          <span class="px-2 py-1 rounded text-xs font-semibold"
-                :class="contact.isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
-            {{ contact.isOnline ? 'Online' : 'Offline' }}
-          </span>
-        </div>
-
+        </button>
       </div>
     </div>
 
     <!-- Tab: Requests -->
-    <div v-else class="px-6 py-4 space-y-10">
-      <!-- Received requests -->
+    <div v-else class="px-6 py-4 space-y-8">
+      <!-- Received Requests -->
       <div>
-        <div class="font-semibold text-gray-700 mb-2">Received requests</div>
-        <div v-if="loadingRequestsReceived" class="py-4 text-center text-gray-400">Loading…</div>
-        <div v-else-if="pendingRequestsReceived.length === 0" class="text-gray-400 text-sm">No incoming request</div>
+        <h3 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Received Requests</h3>
+
+        <div v-if="loadingRequestsReceived" class="flex justify-center py-8">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+        </div>
+
+        <div v-else-if="pendingRequestsReceived.length === 0" class="text-slate-400 text-sm">
+          No incoming requests
+        </div>
+
         <div v-else class="space-y-2">
-          <div v-for="req in pendingRequestsReceived" :key="req.contactId" class="flex items-center gap-5 py-2">
-            <img :src="req.imageUrl" class="w-10 h-10 rounded-full" />
+          <div
+              v-for="req in pendingRequestsReceived"
+              :key="req.contactId"
+              class="bg-slate-800/20 border border-slate-700/20 rounded-3xl px-4 py-3 flex items-center gap-3"
+          >
+            <img :src="req.imageUrl" class="w-10 h-10 rounded-full object-cover ring-1 ring-slate-700/50" />
             <div class="flex-1 min-w-0">
-              <div class="font-medium">{{ getDisplayName(req) }}</div>
-              <div class="text-xs text-gray-500">Requested at {{ new Date(req.requestedAt).toLocaleString() }}</div>
+              <div class="font-medium text-white">{{ getDisplayName(req) }}</div>
+              <div class="text-xs text-slate-500">{{ new Date(req.requestedAt).toLocaleString() }}</div>
             </div>
-            <button
-                class="bg-green-100 text-green-600 px-3 py-1 rounded text-xs mr-2"
-                :disabled="requestActionLoading[req.contactId]"
-                @click="handleAccept(req.contactId)">
-              Accept
-            </button>
-            <button
-                class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs"
-                :disabled="requestActionLoading[req.contactId]"
-                @click="handleReject(req.contactId)">
-              Reject
-            </button>
+            <div class="flex gap-2">
+              <button
+                  class="px-3 py-1 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/40 rounded-lg text-xs font-medium transition"
+                  :disabled="requestActionLoading[req.contactId]"
+                  @click="handleAccept(req.contactId)"
+              >
+                {{ requestActionLoading[req.contactId] ? '...' : 'Accept' }}
+              </button>
+              <button
+                  class="px-3 py-1 bg-red-600/20 text-red-300 hover:bg-red-600/40 rounded-lg text-xs font-medium transition"
+                  :disabled="requestActionLoading[req.contactId]"
+                  @click="handleReject(req.contactId)"
+              >
+                {{ requestActionLoading[req.contactId] ? '...' : 'Reject' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      <!-- Sent requests -->
+
+      <!-- Sent Requests -->
       <div>
-        <div class="font-semibold text-gray-700 mb-2">Sent requests</div>
-        <div v-if="loadingRequestsSent" class="py-4 text-center text-gray-400">Loading…</div>
-        <div v-else-if="pendingRequestsSent.length === 0" class="text-gray-400 text-sm">No sent request</div>
+        <h3 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Sent Requests</h3>
+
+        <div v-if="loadingRequestsSent" class="flex justify-center py-8">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+        </div>
+
+        <div v-else-if="pendingRequestsSent.length === 0" class="text-slate-400 text-sm">
+          No sent requests
+        </div>
+
         <div v-else class="space-y-2">
-          <div v-for="req in pendingRequestsSent" :key="req.contactId" class="flex items-center gap-5 py-2">
-            <img :src="req.receiver?.imageUrl" class="w-10 h-10 rounded-full" />
+          <div
+              v-for="req in pendingRequestsSent"
+              :key="req.contactId"
+              class="bg-slate-800/20 border border-slate-700/20 rounded-3xl px-4 py-3 flex items-center gap-3"
+          >
+            <img :src="req.receiver?.imageUrl" class="w-10 h-10 rounded-full object-cover ring-1 ring-slate-700/50" />
             <div class="flex-1 min-w-0">
-              <div class="font-medium">{{ getDisplayName(req.receiver || req) }}</div>
+              <div class="font-medium text-white">{{ getDisplayName(req.receiver || req) }}</div>
             </div>
             <button
-                class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
+                class="px-3 py-1 bg-slate-800/50 hover:bg-slate-800/70 text-slate-300 rounded-lg text-xs font-medium transition"
                 :disabled="requestActionLoading[req.contactId]"
-                @click="handleCancel(req.contactId)">
-              Cancel
+                @click="handleCancel(req.contactId)"
+            >
+              {{ requestActionLoading[req.contactId] ? '...' : 'Cancel' }}
             </button>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Bottom Navigation -->
     <BottomMenu active="contacts" />
   </div>
 </template>
