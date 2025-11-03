@@ -6,7 +6,7 @@ RUN npm install -g pnpm
 
 COPY ../.. .
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 WORKDIR /app
 RUN pnpm --filter frontend build
@@ -20,7 +20,7 @@ RUN npm install -g pnpm
 
 COPY ../.. .
 
-RUN pnpm install --frozen-lockfile --production
+RUN pnpm install --prod
 
 COPY --from=builder /app/apps/frontend/.output ./apps/frontend/.output
 

@@ -4,17 +4,13 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-# Copy from root level (one dir up, twice)
 COPY ../.. .
 
-# Install all dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
-# Generate Prisma
 WORKDIR /app/apps/backend
 RUN pnpm prisma generate
 
-# Build
 WORKDIR /app
 RUN pnpm --filter backend build
 
