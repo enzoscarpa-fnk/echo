@@ -8,11 +8,9 @@ RUN pnpm install
 WORKDIR /app/apps/backend
 RUN pnpm prisma generate
 
-WORKDIR /app
-RUN pnpm --filter backend build
+RUN pnpm build
 
 EXPOSE 3000
 
-# Run from backend directory
-WORKDIR /app/apps/backend
+# Run
 CMD ["node", "dist/main.js"]

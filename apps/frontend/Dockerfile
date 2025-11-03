@@ -2,7 +2,7 @@ FROM node:20-alpine as builder
 
 WORKDIR /app
 RUN npm install -g pnpm
-COPY ../.. .
+COPY . .
 RUN pnpm install
 
 RUN pnpm --filter frontend build
