@@ -12,12 +12,10 @@ RUN pnpm build
 FROM node:20-alpine
 
 WORKDIR /app
-RUN npm install -g pnpm
 
-COPY --from=builder /app/apps/backend/dist ./dist
+COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000
 
-WORKDIR /app/apps/backend
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "apps/backend/dist/src/main.js"]
