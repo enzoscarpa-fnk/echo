@@ -12,5 +12,4 @@ RUN pnpm build
 
 EXPOSE 3000
 
-# Run
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
