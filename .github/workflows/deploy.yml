@@ -26,6 +26,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Setup environment for tests
       - name: Setup environment
         run: |
           cd apps/backend
@@ -40,24 +41,29 @@ jobs:
           NODE_ENV="test"
           EOF
 
+      # Run Prisma migrations
       - name: Run Prisma migrations
         run: |
           cd apps/backend
           pnpm prisma db push --skip-generate
           echo "✅ Database schema synced"
 
+      # Generate Prisma Client
       - name: Generate Prisma Client
         run: |
           cd apps/backend
           pnpm prisma generate
           echo "✅ Prisma generated successfully"
 
+      # Build backend
       - name: Build backend
         run: pnpm --filter backend build
 
-      - name: Skip tests (TODO fix unit tests)
+      # Skip tests (TODO fix unit tests)
+      - name: Skip tests
         run: echo "✅ Tests skipped - focus on build success"
 
+      # Build frontend
       - name: Frontend build
         run: pnpm --filter frontend build
 
@@ -71,6 +77,7 @@ jobs:
 
       - name: Debug info
         run: |
+          echo "🚀 Deploying to VPS"
           echo "Host: ${{ vars.VPS_HOST }}"
           echo "User: ${{ vars.VPS_USER }}"
           echo "SSH Key present: ${{ secrets.SSH_PRIVATE_KEY != '' }}"
@@ -88,24 +95,27 @@ jobs:
             export TERM=xterm
             cd ${{ vars.VPS_PROJECT_PATH }}
             
-            # Backup DB before deployment
+            # Backup DB
             cp apps/backend/prisma/dev.db apps/backend/prisma/dev.db.backup 2>/dev/null || true
             
             # Pull latest code
             git pull origin master
             
-            # Restart containers
-            docker compose down --volumes
-            docker compose up -d --build
+            # Rebuild Docker images (no volumes, fresh build)
+            docker compose down --remove-orphans
+            docker compose build --no-cache
+            docker compose up -d
             
-            # Wait for services to be ready
-            sleep 15
+            # Wait for services
+            echo "⏳ Waiting for services to start..."
+            sleep 30
             
-            # Run migrations on production
-            docker compose exec -T backend pnpm prisma db push --skip-generate
+            # Verify deployment
+            echo "🔍 Checking services..."
+            docker compose ps
+            docker compose logs --tail=20
             
-            # Check deployment status
-            docker ps --filter "name=echo" --format "table {{.Names}}\t{{.Status}}"
+            # Cleanup
             docker system prune -f
             
-            echo "✅ Deployment successful!"
+            echo "✅ Deployment complete!"

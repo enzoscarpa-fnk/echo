@@ -2,35 +2,21 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install pnpm
 RUN npm install -g pnpm
 
-# Copy all workspace files (root level)
-COPY pnpm-workspace.yaml ./
-COPY pnpm-lock.yaml ./
-COPY package.json ./
-COPY tsconfig.json ./
-COPY turbo.json ./
-
-# Copy all packages
-COPY packages/ ./packages/
-
-# Copy backend
-COPY apps/backend/ ./apps/backend/
+# Copy from root level (one dir up, twice)
+COPY ../.. .
 
 # Install all dependencies
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma types
+# Generate Prisma
 WORKDIR /app/apps/backend
 RUN pnpm prisma generate
 
-# Build backend
+# Build
 WORKDIR /app
 RUN pnpm --filter backend build
-
-# Production dependencies
-RUN pnpm prune --production
 
 EXPOSE 3000
 

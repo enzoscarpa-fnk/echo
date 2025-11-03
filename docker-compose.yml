@@ -1,22 +1,21 @@
 services:
   backend:
     build:
-      context: ./apps/backend
+      context: apps/backend
       dockerfile: Dockerfile
     image: echo-backend
     container_name: echo_backend
     restart: unless-stopped
-    working_dir: /app
     ports:
       - "8082:3000"
     env_file:
       - /home/dev/secrets/echo-back.env
     volumes:
-      - ./apps/backend/prisma:/app/prisma
+      - ./apps/backend/prisma:/app/apps/backend/prisma
     networks:
       - echo_network
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health" ]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -24,12 +23,11 @@ services:
 
   frontend:
     build:
-      context: ./apps/frontend
+      context: apps/frontend
       dockerfile: Dockerfile
     image: echo-frontend
     container_name: echo_frontend
     restart: unless-stopped
-    working_dir: /app
     ports:
       - "8083:3000"
     env_file:
