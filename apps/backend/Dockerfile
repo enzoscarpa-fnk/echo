@@ -12,10 +12,8 @@ RUN pnpm build
 FROM node:20-alpine
 
 WORKDIR /app
-RUN npm install -g pnpm
 
-COPY --from=builder /app/pnpm-lock.yaml /app/package.json ./
-RUN pnpm install --frozen-lockfile --prod
+COPY --from=builder /app/node_modules ./node_modules
 
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 
