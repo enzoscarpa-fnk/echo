@@ -46,14 +46,14 @@ jobs:
         run: |
           cd apps/backend
           pnpm prisma db push --skip-generate
-          echo "✅ Database schema synced"
+          echo "Database schema synced"
 
       # Generate Prisma Client
       - name: Generate Prisma Client
         run: |
           cd apps/backend
           pnpm prisma generate
-          echo "✅ Prisma generated successfully"
+          echo "Prisma generated successfully"
 
       # Build backend
       - name: Build backend
@@ -61,7 +61,7 @@ jobs:
 
       # Skip tests (TODO fix unit tests)
       - name: Skip tests
-        run: echo "✅ Tests skipped - focus on build success"
+        run: echo "Tests skipped - focus on build success"
 
       # Build frontend
       - name: Frontend build
