@@ -4,12 +4,15 @@ WORKDIR /app
 RUN npm install -g pnpm
 COPY . .
 RUN pnpm install
-RUN pnpm prisma generate
-RUN pnpm --filter backend build
 
-RUN test -f apps/backend/dist/main.js || (echo "❌ BUILD FAILED - NO MAIN.JS" && ls -la apps/backend/dist/ && exit 1)
+WORKDIR /app/apps/backend
+RUN pnpm prisma generate
+
+WORKDIR /app
+RUN pnpm --filter backend build
 
 EXPOSE 3000
 
+# Run from backend directory
 WORKDIR /app/apps/backend
 CMD ["node", "dist/main.js"]
