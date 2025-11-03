@@ -1,8 +1,8 @@
 services:
   backend:
     build:
-      context: apps/backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/backend/Dockerfile
     image: echo-backend
     container_name: echo_backend
     restart: unless-stopped
@@ -23,8 +23,8 @@ services:
 
   frontend:
     build:
-      context: apps/frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/frontend/Dockerfile
     image: echo-frontend
     container_name: echo_frontend
     restart: unless-stopped
