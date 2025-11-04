@@ -10,10 +10,13 @@ COPY apps/backend ./apps/backend
 
 RUN pnpm install --frozen-lockfile
 
-RUN pnpm exec prisma generate --schema=./apps/backend/prisma/schema.prisma
+ENV PATH="/app/node_modules/.bin:$PATH"
 
 WORKDIR /app/apps/backend
-RUN ../../node_modules/.bin/nest build
+
+RUN prisma generate
+
+RUN nest build
 
 EXPOSE 3000
 
