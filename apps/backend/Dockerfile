@@ -8,12 +8,8 @@ COPY . .
 
 RUN pnpm install --frozen-lockfile
 
-WORKDIR /app/apps/backend
-
-RUN pnpm prisma generate
-
-RUN pnpm build
+RUN cd apps/backend && pnpm prisma generate && pnpm build
 
 EXPOSE 3000
 
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "/app/apps/backend/dist/src/main.js"]
