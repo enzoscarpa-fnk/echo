@@ -6,14 +6,14 @@ RUN npm install -g pnpm
 
 COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
 COPY packages ./packages
+COPY apps/backend ./apps/backend
 
 RUN pnpm install --frozen-lockfile
 
-COPY apps/backend ./apps/backend
+RUN pnpm exec prisma generate --schema=./apps/backend/prisma/schema.prisma
 
-RUN pnpm --filter backend prisma generate
-
-RUN pnpm --filter backend build
+WORKDIR /app/apps/backend
+RUN ../../node_modules/.bin/nest build
 
 EXPOSE 3000
 
