@@ -2,12 +2,6 @@
 node_modules/
 .pnpm-store/
 
-# Build outputs
-dist/
-.output/
-.nuxt/
-.next/
-
 # Environment files
 .env
 .env.local
@@ -30,3 +24,9 @@ logs/
 # Cache
 .cache/
 .turbo/
+
+# Don't ignore build outputs globally - let each app manage its own
+# dist/
+# .output/
+# .nuxt/
+# .next/
