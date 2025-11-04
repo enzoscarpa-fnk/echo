@@ -13,9 +13,11 @@ async function bootstrap() {
 
     app.use('/webhooks', raw({ type: 'application/json' }));
 
+    const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+
     // Enable CORS for frontend
     app.enableCors({
-        origin: 'http://localhost:3000', // Frontend URL
+        origin: corsOrigin, // Dynamic CORS
         credentials: true,
     });
 
