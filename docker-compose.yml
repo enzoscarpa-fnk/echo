@@ -1,24 +1,4 @@
 services:
-  nginx:
-    build:
-      context: .
-      dockerfile: nginx.dockerfile
-    image: echo-nginx
-    container_name: echo_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./echo-nginx.conf:/etc/nginx/conf.d/echo.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - echo_network
-
-
   backend:
     build:
       context: .
